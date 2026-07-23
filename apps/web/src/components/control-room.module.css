@@ -712,6 +712,117 @@
   line-height: 1.45;
 }
 
+.checkDiff {
+  margin: 0 12px 12px;
+  border: 1px solid #d5dee9;
+  background: #fff;
+}
+
+.checkDiffHead {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.checkDiffHead h4 {
+  margin: 6px 0 0;
+  font: 670 14px/1.2 var(--font-display), sans-serif;
+  letter-spacing: -.02em;
+}
+
+.disagreementBanner {
+  margin: 0;
+  padding: 10px 14px;
+  font: 650 11px/1.4 var(--font-mono), monospace;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.disagreementBanner[data-disagree="true"] {
+  color: #7a3418;
+  background: #fff1eb;
+  border-bottom-color: #efc3ad;
+}
+
+.disagreementBanner[data-disagree="false"] {
+  color: #1f5f49;
+  background: #eef8f3;
+  border-bottom-color: #b9dbc9;
+}
+
+.checkDiffTableWrap {
+  overflow-x: auto;
+}
+
+.checkDiffTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.checkDiffTable th {
+  text-align: left;
+  padding: 8px 12px;
+  color: #5f6c80;
+  font: 650 8px/1 var(--font-mono), monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e8edf4;
+  background: #f7f9fc;
+}
+
+.checkDiffTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: top;
+}
+
+.checkDiffTable tr[data-agreement="ledger-only"],
+.checkDiffTable tr[data-agreement="session-only"] {
+  background: #fff8f4;
+}
+
+.checkDiffTable tr[data-agreement="both-pass"] {
+  background: #f7fcf9;
+}
+
+.checkDiffTable tr[data-agreement="both-fail"] {
+  background: #fbfbfc;
+}
+
+.checkDiffTable code {
+  font: 600 10px/1.3 var(--font-mono), monospace;
+}
+
+.checkDiffLabel {
+  display: block;
+  margin-top: 3px;
+  color: #6d7889;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.checkDiffTable td[data-pass="true"] {
+  color: #1f5f49;
+  font-weight: 700;
+}
+
+.checkDiffTable td[data-pass="false"] {
+  color: #a12d1a;
+  font-weight: 700;
+}
+
+.checkDiffTable td[data-pass="n/a"] {
+  color: #8a95a8;
+}
+
+.checkDiffFoot {
+  margin: 0;
+  padding: 10px 14px 12px;
+  color: #6d7889;
+  font-size: 10px;
+  line-height: 1.45;
+  border-top: 1px solid #e8edf4;
+}
+
 @media (max-width: 980px) {
   .hero, .layout { grid-template-columns: 1fr; }
   .ticketGrid { grid-template-columns: 1fr; }

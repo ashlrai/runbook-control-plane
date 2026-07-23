@@ -33,7 +33,7 @@ const doors = [
     body: "Bind charter digests, public-docs inventory pins, shadow metrics, and dossier status into one local session spine. Fail-closed on unknown tools.",
     href: "/session",
     cta: "Open Session dashboard",
-    meta: ["Shared spine · MCP + web + shadow + dossier", "localStorage process evidence", "Not hard gateway · not certification"],
+    meta: ["Shared spine · MCP + web + shadow + dossier", "Clone & challenge · one-rule charter forks", "localStorage process evidence", "Not hard gateway · not certification"],
   },
   {
     index: "02",
@@ -64,12 +64,12 @@ const doors = [
 const productSurfaces = [
   { href: "/showcase", label: "Hosted showcase", detail: "One-click control-plane story · dual-eval · HFA=0" },
   { href: "/theater", label: "Process Theater", detail: "Session timeline · pin · shadow · dual-eval · HOSTED LAB" },
-  { href: "/session", label: "Control Plane Session", detail: "Charter · inventory pin · shadow · dossier evidence spine" },
+  { href: "/session", label: "Control Plane Session", detail: "Charter · inventory pin · shadow · dossier · clone & challenge" },
   { href: "/registry", label: "Capability Registry", detail: "50-tool public-derived inventory + interactive drift theater" },
   { href: "/control-room", label: "Control Room", detail: "Local charter + real engine preflight tickets" },
   { href: "/shadow-lab", label: "Shadow Process Lab", detail: "Recursive refine · multi-charter tournament · meta-curriculum" },
   { href: "/dossier", label: "Dossier status", detail: "31-case architecture board · not buyer-ready" },
-  { href: "/mcp", label: "MCP cockpit", detail: "Install, 38 tools, golden journey, fixture demos" },
+  { href: "/mcp", label: "MCP cockpit", detail: "Install, 39 tools, golden journey, fixture demos" },
   { href: "/lineage", label: "Lineage atlas", detail: "Multi-capsule graph, offline only" },
   { href: "/trust", label: "Trust center", detail: "Metadata snapshot inspection + limits" },
   { href: "/proof-capsule", label: "Proof capsule", detail: "Portable evidence packaging story" },

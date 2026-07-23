@@ -157,7 +157,7 @@ export const ASSURANCE_JSON = `{
 export const TOOL_CONTRACT_JSON = `{
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.0",
+  "serverVersion": "0.4.1",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -528,6 +528,16 @@ export const TOOL_CONTRACT_JSON = `{
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "tools/list parse + inventory pin check. Optional pinPreset least-privilege projections."
+    },
+    {
+      "name": "runbook_session_clone_challenge",
+      "effect": "local-session-charter-challenge-fork",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "One-rule charter fork into a child session. Process experiment only — not safer strategy or returns."
     }
   ],
   "discoveryResources": [

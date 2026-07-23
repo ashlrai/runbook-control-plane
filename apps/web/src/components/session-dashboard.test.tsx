@@ -139,6 +139,56 @@ describe("Session dashboard", () => {
     clickSpy.mockRestore();
   });
 
+  it("clones an elite session via Deny GME challenge and selects the child", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "elite" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Elite parent challenge" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Elite parent challenge/i })).toBeTruthy();
+    });
+
+    const parentId = browserSessionStore.list()[0]!.sessionId;
+    expect(screen.getByLabelText("Clone and challenge")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Deny GME/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Challenge: Deny GME/i })).toBeTruthy();
+      // Status note carries receipt JSON summary (distinct from section honesty copy).
+      expect(screen.getByText(/Clone & challenge · Deny GME/i)).toBeTruthy();
+    });
+
+    const sessions = browserSessionStore.list();
+    expect(sessions.length).toBe(2);
+    const child = sessions.find((s) => s.sessionId !== parentId);
+    expect(child).toBeDefined();
+    expect(child!.label).toMatch(/Challenge: Deny GME/);
+    expect(child!.label).toContain(parentId);
+    expect(child!.charter?.deniedSymbols.map((s) => s.toUpperCase())).toContain("GME");
+    expect(child!.notes.some((n) => n.includes("clone-challenge") && n.includes(parentId))).toBe(
+      true,
+    );
+    expect(child!.charterBindingEnforcement).toBe(
+      browserSessionStore.read(parentId).charterBindingEnforcement,
+    );
+
+    // Child is selected after challenge.
+    const childOption = screen.getByRole("option", { name: /Challenge: Deny GME/i });
+    expect(childOption.getAttribute("aria-selected")).toBe("true");
+
+    const note = screen.getByText(/Clone & challenge · Deny GME/i).textContent ?? "";
+    expect(note).toMatch(/not safer strategy/i);
+    expect(note).toMatch(/not returns/i);
+    expect(note).toMatch(/runbook\.clone-challenge\.v1/);
+  });
+
   it("cycles charter binding and process-denies option under fail-closed dual-eval", async () => {
     render(<SessionDashboard />);
 

@@ -7,6 +7,7 @@ import {
   BrowserSessionStore,
   browserSessionStore,
   buildDossierStatusSnapshotAttachment,
+  buildInventoryPinPreset,
   buildPublicDocsInventoryPin,
   browserCharterDigest,
   checkObservedToolsAgainstPin,
@@ -16,7 +17,10 @@ import {
   parseSessionIdQuery,
   parseToolsListJson,
   parseToolsListJsonText,
+  pinPresetToRegistryHandoffSession,
+  pinPresetToSession,
   refineCharterIntoSession,
+  REGISTRY_PIN_HANDOFF_LABEL,
   resolveSessionCharterSeed,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
@@ -172,6 +176,30 @@ describe("control-plane-session browser adapter", () => {
     expect(warned.allowed).toBe(true);
     expect(warned.processDeniedBySession).toBe(false);
     expect(warned.sessionCharterBinding).toBe("mismatch-session-denies");
+  });
+
+  it("buildInventoryPinPreset filters effect classes and pinPresetToSession hands off", async () => {
+    const full = await buildInventoryPinPreset("public-docs-full");
+    expect(full.tools).toHaveLength(50);
+    const observation = await buildInventoryPinPreset("observation-only");
+    expect(observation.tools.every((t) => t.effectClass === "observation")).toBe(true);
+    expect(observation.tools.some((t) => t.name === "place_equity_order")).toBe(false);
+    expect(observation.limitations).toContain("preset:observation-only");
+    const noCap = await buildInventoryPinPreset("no-capital-order-mutation");
+    expect(noCap.tools.every((t) => t.effectClass !== "capital-order-mutation")).toBe(true);
+    expect(noCap.tools.some((t) => t.effectClass === "order-review")).toBe(true);
+    expect(noCap.tools.length).toBeLessThan(50);
+
+    const handoff = await pinPresetToRegistryHandoffSession("observation-only");
+    expect(handoff.created).toBe(true);
+    expect(handoff.session.label).toBe(REGISTRY_PIN_HANDOFF_LABEL);
+    expect(handoff.toolCount).toBe(observation.tools.length);
+    expect(handoff.session.inventoryPin?.tools).toHaveLength(observation.tools.length);
+
+    const again = await pinPresetToSession(handoff.session.sessionId, "public-docs-full");
+    expect(again.created).toBe(false);
+    expect(again.toolCount).toBe(50);
+    expect(again.session.inventoryPin?.tools).toHaveLength(50);
   });
 
   it("importToolsListAgainstPin fail-closes sample tools/list with place_crypto_order_unknown", async () => {

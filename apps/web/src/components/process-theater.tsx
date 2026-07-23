@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Terminal,
 } from "lucide-react";
+import { evaluateAgentProcess, type AgentEvalReport } from "@runbook/engine/agent-eval";
 import { BrandMark } from "./brand-mark";
 import {
   browserSessionStore,
@@ -20,6 +21,7 @@ import {
   type ControlPlaneSession,
   type CharterDualEvalResult,
 } from "../lib/control-plane-session";
+import { EXPERIMENT_ID, SAMPLE_LEDGER_EVENTS } from "../lib/sample-ledger-events";
 import { HOSTED_TRUTH_RAIL, SITE_ORIGIN } from "../lib/site";
 import styles from "./process-theater.module.css";
 
@@ -101,6 +103,10 @@ export function ProcessTheater() {
     "Load browser sessions or seed the fixture theater (elite + pin + HFA 0 + dual-eval).",
   );
   const [busy, setBusy] = useState(false);
+  const [agentEval, setAgentEval] = useState<AgentEvalReport | null>(null);
+  const [agentEvalNote, setAgentEvalNote] = useState(
+    "Load the embedded sample ledger and run process axes only — never a composite score.",
+  );
 
   const refresh = useCallback(() => {
     const list = browserSessionStore.list();
@@ -183,6 +189,19 @@ export function ProcessTheater() {
     );
     refresh();
   }, [selected, runDualFor, refresh]);
+
+  const loadSampleLedgerAndEvaluate = useCallback(() => {
+    try {
+      const report = evaluateAgentProcess(EXPERIMENT_ID, [...SAMPLE_LEDGER_EVENTS]);
+      setAgentEval(report);
+      setAgentEvalNote(
+        `Sample ledger evaluated · experiment=${report.experimentId} · events=${report.eventCount} · processCorrect=${String(report.processCorrect)} · compositeScore=false · not trading performance`,
+      );
+    } catch (error) {
+      setAgentEval(null);
+      setAgentEvalNote(error instanceof Error ? error.message : "Agent process eval failed.");
+    }
+  }, []);
 
   return (
     <main className={styles.page}>
@@ -409,6 +428,86 @@ export function ProcessTheater() {
           </div>
         </section>
       </div>
+
+      <section className={styles.panel} aria-labelledby="agent-eval-title" style={{ margin: "0 clamp(20px, 4vw, 64px) 24px" }}>
+        <div className={styles.panelHead}>
+          <div>
+            <p className={styles.eyebrow}>runbook.agent-eval.v1 · process observation only</p>
+            <h2 id="agent-eval-title">Agent process eval</h2>
+          </div>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={loadSampleLedgerAndEvaluate}
+          >
+            <Play size={15} aria-hidden="true" />
+            Load sample ledger & evaluate
+          </button>
+        </div>
+        <p className={styles.statusNote}>{agentEvalNote}</p>
+        <div className={styles.sectionBody}>
+          {!agentEval ? (
+            <p className={styles.empty}>
+              Uses embedded sample ledger ({EXPERIMENT_ID}) — multi-axis process quality only. No
+              composite score. Not PnL. Not broker enforcement.
+            </p>
+          ) : (
+            <>
+              <div className={styles.metrics} aria-label="Agent eval summary">
+                <div>
+                  <span>processCorrect</span>
+                  <strong data-passed={agentEval.processCorrect ? "true" : "false"}>
+                    {String(agentEval.processCorrect)}
+                  </strong>
+                </div>
+                <div>
+                  <span>compositeScore</span>
+                  <strong>false · never</strong>
+                </div>
+                <div>
+                  <span>Events</span>
+                  <strong>{agentEval.eventCount}</strong>
+                </div>
+                <div>
+                  <span>Assurance</span>
+                  <strong>{agentEval.assurance}</strong>
+                </div>
+              </div>
+
+              <div className={styles.axisGrid} aria-label="Process axes">
+                {agentEval.axes.map((axis) => (
+                  <article
+                    key={axis.id}
+                    className={styles.axisCard}
+                    data-passed={axis.passed ? "true" : "false"}
+                  >
+                    <span className={styles.axisBadge} data-passed={axis.passed ? "true" : "false"}>
+                      {axis.passed ? "passed" : "failed"}
+                    </span>
+                    <strong>{axis.label}</strong>
+                    <code>{axis.id}</code>
+                    <p>{axis.detail}</p>
+                  </article>
+                ))}
+              </div>
+
+              <div className={styles.limitations} aria-label="Agent eval limitations">
+                <strong>Limitations (honesty rails)</strong>
+                <ul>
+                  {agentEval.limitations.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <p>
+                  notTradingPerformance={String(agentEval.notTradingPerformance)} · notPnL=
+                  {String(agentEval.notPnL)} · brokerEffect={String(agentEval.brokerEffect)} ·
+                  compositeScore={String(agentEval.compositeScore)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       <footer className={styles.footer}>
         Hosted at {SITE_ORIGIN}. Process Theater is browser-local process evidence only. Not

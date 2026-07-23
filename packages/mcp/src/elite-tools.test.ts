@@ -59,7 +59,7 @@ describe("elite wave MCP tools", () => {
     await rm(harness.directory, { recursive: true, force: true });
   });
 
-  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.0", async () => {
+  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.1", async () => {
     const result = await harness.client.callTool({
       name: "runbook_surface_lock_receipt",
       arguments: {},
@@ -69,7 +69,7 @@ describe("elite wave MCP tools", () => {
     expect(body).toMatchObject({
       schemaVersion: "runbook.surface-lock-receipt.v1",
       serverName: "runbook",
-      serverVersion: "0.4.0",
+      serverVersion: "0.4.1",
       toolCount: TOOL_NAMES.length,
       hasPlaceOrCancelTools: false,
       openWorldHint: false,
@@ -78,7 +78,7 @@ describe("elite wave MCP tools", () => {
     });
     expect(body.brokerExecutionTools).toEqual([]);
     expect(String(body.toolSetSha256)).toHaveLength(64);
-    expect(TOOL_NAMES.length).toBe(38);
+    expect(TOOL_NAMES.length).toBe(39);
   });
 
   it("process_tick stop on unknown tool with fail-closed pin", async () => {
@@ -176,5 +176,63 @@ describe("elite wave MCP tools", () => {
     expect(String(body.archiveBase64).length).toBeGreaterThan(32);
     expect(String(body.archiveSha256)).toHaveLength(64);
     expect(String(body.experimentId)).toMatch(/^CPS-SEAL-/);
+  });
+
+  it("clone challenge creates child session with mutated charter", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-CLONE-PARENT",
+        label: "Clone challenge parent",
+        policy: elitePolicy,
+      },
+    });
+
+    const cloned = await harness.client.callTool({
+      name: "runbook_session_clone_challenge",
+      arguments: {
+        sessionId: "CPS-CLONE-PARENT",
+        mutationId: "lower-max-order-notional",
+      },
+    });
+    expect(cloned.isError).not.toBe(true);
+    const body = structured(cloned);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.clone-challenge.v1",
+      parentSessionId: "CPS-CLONE-PARENT",
+      mutationId: "lower-max-order-notional",
+      notTradingPerformance: true,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    expect(typeof body.childSessionId).toBe("string");
+    expect(String(body.childSessionId)).not.toBe("CPS-CLONE-PARENT");
+    expect(String(body.parentCharterDigest)).toHaveLength(64);
+
+    const childGet = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: String(body.childSessionId) },
+    });
+    expect(childGet.isError).not.toBe(true);
+    const childBody = structured(childGet);
+    const session = childBody.session as {
+      charter?: { maxOrderNotional?: number };
+      notes?: string[];
+    };
+    // Parent maxOrderNotional 125 → floor(125 * 0.75) = 93
+    expect(session.charter?.maxOrderNotional).toBe(93);
+    expect(session.notes?.some((n) => n.includes("cloned_from") && n.includes("CPS-CLONE-PARENT"))).toBe(
+      true,
+    );
+
+    const parentGet = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-CLONE-PARENT" },
+    });
+    const parentSession = (structured(parentGet).session as { notes?: string[] }).notes ?? [];
+    expect(parentSession.some((n) => n.includes("clone_challenge") && n.includes(String(body.childSessionId)))).toBe(
+      true,
+    );
   });
 });

@@ -24,6 +24,14 @@
     "./process-capsule": {
       "types": "./src/process-capsule.ts",
       "default": "./dist/process-capsule.js"
+    },
+    "./clone-challenge": {
+      "types": "./src/clone-challenge.ts",
+      "default": "./dist/clone-challenge.js"
+    },
+    "./check-diff": {
+      "types": "./src/check-diff.ts",
+      "default": "./dist/check-diff.js"
     }
   },
   "sideEffects": false,

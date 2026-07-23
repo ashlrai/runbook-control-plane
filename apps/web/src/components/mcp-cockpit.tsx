@@ -24,10 +24,13 @@ import {
   DISCOVERY_RESOURCES,
   EXAMPLE_PREFLIGHT_TOOL_CALL,
   FIXTURE_DEMO_CARDS,
+  formatSurfaceLockSummary,
   GOLDEN_JOURNEY_STEPS,
   MCP_INSTALL_COMMAND,
   MCP_OPERATOR_DOCS,
   MCP_PILOT_DOCTOR_COMMAND,
+  MCP_SERVER_VERSION,
+  MCP_SURFACE_LOCK,
   MCP_TOOL_COUNT,
   MCP_TOOLS,
 } from "../lib/mcp-cockpit-data";
@@ -156,10 +159,12 @@ export function McpCockpit() {
           <p className={styles.eyebrow}>Runbook MCP companion · local-first cockpit</p>
           <h1 id="mcp-title">Record beside the agent. Never as the broker.</h1>
           <p className={styles.lede}>
-            Install the local Runbook MCP next to your coding agent. {MCP_TOOL_COUNT} tools: discovery,
-            six ledger writers/readers, seven offline analysis tools, six shadow self-improvement tools,
-            and ten control-plane session tools. Preflight is deterministic and advisory. A direct
-            brokerage tool can always bypass Runbook—so the first pilot stays disconnected.
+            Install the local Runbook MCP next to your coding agent. Server{" "}
+            <strong>v{MCP_SERVER_VERSION}</strong> · {MCP_TOOL_COUNT} closed tools: discovery, six
+            ledger writers/readers, seven offline analysis tools, six shadow self-improvement tools,
+            thirteen control-plane session tools, and six elite process tools. Preflight is
+            deterministic and advisory. A direct brokerage tool can always bypass Runbook—so the
+            first pilot stays disconnected.
           </p>
         </div>
         <aside className={styles.boundary} aria-label="What this page never claims">
@@ -174,6 +179,56 @@ export function McpCockpit() {
             <li>Never invents a composite safety score from ledger or pilot checks.</li>
           </ul>
         </aside>
+      </section>
+
+      <section className={styles.surfaceLock} aria-labelledby="surface-lock-title">
+        <div className={styles.panelHead}>
+          <div>
+            <p className={styles.eyebrow}>Surface lock · static cockpit display</p>
+            <h2 id="surface-lock-title">
+              {MCP_SURFACE_LOCK.serverName} v{MCP_SURFACE_LOCK.serverVersion} · {MCP_SURFACE_LOCK.toolCount}{" "}
+              tools · attests Runbook only
+            </h2>
+          </div>
+          <CopyButton
+            text={formatSurfaceLockSummary()}
+            label="Copy surface lock summary text"
+          />
+        </div>
+        <div className={styles.surfaceLockBody} aria-label="Surface lock summary">
+          <div className={styles.surfaceLockGrid}>
+            <div>
+              <span>toolCount</span>
+              <strong>{MCP_SURFACE_LOCK.toolCount}</strong>
+            </div>
+            <div>
+              <span>brokerExecutionTools</span>
+              <strong>[] empty</strong>
+            </div>
+            <div>
+              <span>openWorldHint</span>
+              <strong>{String(MCP_SURFACE_LOCK.openWorldHint)}</strong>
+            </div>
+            <div>
+              <span>attests</span>
+              <strong>{MCP_SURFACE_LOCK.attests}</strong>
+            </div>
+            <div>
+              <span>hasPlaceOrCancelTools</span>
+              <strong>{String(MCP_SURFACE_LOCK.hasPlaceOrCancelTools)}</strong>
+            </div>
+            <div>
+              <span>brokerEffect</span>
+              <strong>{String(MCP_SURFACE_LOCK.brokerEffect)}</strong>
+            </div>
+          </div>
+          <p className={styles.surfaceLockMessage}>{MCP_SURFACE_LOCK.message}</p>
+          <ul className={styles.surfaceLockLimits} aria-label="Surface lock limitations">
+            {MCP_SURFACE_LOCK.limitations.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className={styles.journey} aria-labelledby="journey-title">
@@ -249,7 +304,9 @@ export function McpCockpit() {
           <section className={styles.panel} aria-labelledby="tools-title">
             <div className={styles.panelHead}>
               <p className={styles.eyebrow}>Full tool inventory · {MCP_TOOL_COUNT} tools</p>
-              <h2 id="tools-title">1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session · broker effect: none</h2>
+              <h2 id="tools-title">
+                1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 6 elite · broker effect: none
+              </h2>
             </div>
             <p
               style={{

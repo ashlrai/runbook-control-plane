@@ -6,8 +6,8 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.4.0` |
-| Tools | 38 (closed inventory; `brokerExecutionTools: []`) |
+| Server name / version | `runbook` / `0.4.1` |
+| Tools | 39 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |
 | Composite safety score | **prohibited** |
@@ -29,7 +29,7 @@ pnpm demo:frontier
 pnpm demo:elite
 # Optional: multi-charter Pareto tournament
 pnpm demo:tournament
-# Optional smokes (closed 38-tool surface + shadow + dossier)
+# Optional smokes (closed 39-tool surface + shadow + dossier)
 pnpm smoke:elite          # @runbook/shadow-lab + @runbook/mcp tests
 pnpm smoke:web-shadow     # web vitest for shadow-lab UI/browser adapter
 pnpm smoke:dossier        # financial-dossier-process-bridge tests
@@ -85,10 +85,10 @@ A direct brokerage tool can bypass Runbook. Human confirmation must remain enabl
 
 ---
 
-## Full tool table (38)
+## Full tool table (39)
 
 All tools advertise `openWorldHint: false` and `brokerEffect: false` (or no broker side effects).  
-Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session + **5** elite process.
+Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session + **6** elite process.
 
 ### Discovery
 
@@ -150,7 +150,7 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_approval_create_signed` | Ephemeral Ed25519 approval intent; private key not persisted | no | local-device-key-attestation-only |
 | `runbook_approval_verify` | Verify signed intent with public SPKI base64 | yes | local-device-key-attestation-only |
 
-### Elite process (5)
+### Elite process (6)
 
 | Tool | Effect | Read-only | Assurance |
 | --- | --- | --- | --- |
@@ -159,6 +159,7 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_session_import_pack` | Import local session evidence pack JSON | no | local-session-only |
 | `runbook_session_seal_capsule` | Seal session as synthetic process Proof Capsule | no | self-asserted-author-key-integrity-only |
 | `runbook_drift_sentinel` | tools/list + pin fail-closed drift receipt | yes | local-session-only |
+| `runbook_session_clone_challenge` | One-rule charter fork into a child session | no | local-session-only |
 
 Web UI theater: `/session`. Prompt: `runbook_control_plane_session`.
 

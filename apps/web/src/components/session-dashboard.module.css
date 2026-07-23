@@ -547,6 +547,59 @@
   font: 550 11px/1.2 var(--font-mono), monospace;
 }
 
+.challengeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.challengeBtn {
+  text-align: left;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  border: 1px solid #d5dee9;
+  background: #fbfcfe;
+  color: inherit;
+  cursor: pointer;
+}
+
+.challengeBtn:hover {
+  border-color: var(--sd-blue);
+  background: #eef2ff;
+}
+
+.challengeBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.challengeBtn svg {
+  grid-row: 1 / span 2;
+  align-self: start;
+  margin-top: 2px;
+  color: var(--sd-blue);
+}
+
+.challengeBtn strong {
+  font: 650 12px/1.25 var(--font-display), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.challengeBtn span {
+  color: var(--sd-muted);
+  font: 500 10px/1.4 var(--font-mono), monospace;
+}
+
+@media (max-width: 720px) {
+  .challengeGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .trendRow em {
   font-style: normal;
   font-weight: 700;

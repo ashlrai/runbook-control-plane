@@ -6,6 +6,7 @@ import {
   Download,
   ExternalLink,
   FileJson,
+  GitFork,
   Layers3,
   Link2,
   LockKeyhole,
@@ -24,6 +25,12 @@ import {
   SessionPackImportError,
 } from "@runbook/session/pack-import";
 import { buildProcessCapsulePayloads } from "@runbook/session/process-capsule";
+import {
+  applyChallengeMutation,
+  buildCloneChallengeReceipt,
+  CHALLENGE_MUTATIONS,
+  type ChallengeMutationId,
+} from "@runbook/session/clone-challenge";
 import { BrandMark } from "./brand-mark";
 import {
   browserSessionStore,
@@ -311,6 +318,71 @@ export function SessionDashboard() {
       setStatusNote(error instanceof Error ? error.message : "Dual-eval demo failed.");
     }
   }, [selected]);
+
+  const runCloneChallenge = useCallback(
+    async (mutationId: ChallengeMutationId) => {
+      if (!selected?.charter) return;
+      setBusy(true);
+      try {
+        const parent = browserSessionStore.read(selected.sessionId);
+        if (!parent.charter) {
+          throw new Error("Parent session has no charter to clone.");
+        }
+        const mutation = CHALLENGE_MUTATIONS.find((m) => m.id === mutationId);
+        if (!mutation) throw new Error(`Unknown challenge mutation: ${mutationId}`);
+
+        const childCharter = applyChallengeMutation(parent.charter, mutationId);
+        const parentDigest = parent.charterDigest ?? null;
+        const child = await browserSessionStore.create({
+          label: `Challenge: ${mutation.label} ← ${parent.sessionId}`,
+          charter: childCharter,
+          charterBindingEnforcement: parent.charterBindingEnforcement ?? "warn",
+        });
+
+        const digestNote =
+          `clone-challenge parentSessionId=${parent.sessionId} ` +
+          `parentCharterDigest=${parentDigest ?? "none"} mutation=${mutationId} · ` +
+          `process fork only — not safer strategy, not returns`;
+        await browserSessionStore.update(child.sessionId, (s) => ({
+          ...s,
+          notes: [...s.notes, digestNote].slice(-50),
+        }));
+
+        const receipt = buildCloneChallengeReceipt({
+          parentSessionId: parent.sessionId,
+          parentCharterDigest: parentDigest,
+          childSessionId: child.sessionId,
+          mutationId,
+        });
+
+        setSelectedId(child.sessionId);
+        setInventoryCheck(null);
+        setToolsListImport(null);
+        setDualEval(null);
+        setStatusNote(
+          `Clone & challenge · ${mutation.label} · child=${child.sessionId} · ` +
+            `not safer strategy · not returns · receipt=${JSON.stringify({
+              schemaVersion: receipt.schemaVersion,
+              parentSessionId: receipt.parentSessionId,
+              parentCharterDigest: receipt.parentCharterDigest,
+              childSessionId: receipt.childSessionId,
+              mutationId: receipt.mutationId,
+              mutationLabel: receipt.mutationLabel,
+              notTradingPerformance: receipt.notTradingPerformance,
+              brokerEffect: receipt.brokerEffect,
+              compositeScore: receipt.compositeScore,
+              capitalAtRisk: receipt.capitalAtRisk,
+            })}`,
+        );
+        refresh();
+      } catch (error) {
+        setStatusNote(error instanceof Error ? error.message : "Clone & challenge failed.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [selected, refresh],
+  );
 
   const exportPack = useCallback(async () => {
     if (!selected) return;
@@ -790,6 +862,48 @@ export function SessionDashboard() {
                       {dualEval.warningSuffix ? (
                         <code className={styles.mono}>{dualEval.warningSuffix.trim()}</code>
                       ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {selected.charter ? (
+                <div className={styles.panel} aria-label="Clone and challenge">
+                  <div className={styles.panelHead}>
+                    <div>
+                      <p className={styles.eyebrow}>Process fork</p>
+                      <h2>Clone &amp; challenge</h2>
+                    </div>
+                    <span className={styles.mono} style={{ padding: "6px 8px" }}>
+                      one-rule mutations
+                    </span>
+                  </div>
+                  <div className={styles.sectionBody}>
+                    <p>
+                      Fork this session&apos;s charter with a single process-rule mutation. Child
+                      inherits binding enforcement and notes the parent digest. This is{" "}
+                      <strong>not</strong> a safer strategy claim and <strong>not</strong> returns —
+                      lineage is digest binding only.
+                    </p>
+                    <div
+                      className={styles.challengeGrid}
+                      role="group"
+                      aria-label="Challenge mutations"
+                    >
+                      {CHALLENGE_MUTATIONS.map((mutation) => (
+                        <button
+                          key={mutation.id}
+                          type="button"
+                          className={styles.challengeBtn}
+                          onClick={() => void runCloneChallenge(mutation.id)}
+                          disabled={busy}
+                          title={mutation.detail}
+                        >
+                          <GitFork size={14} aria-hidden="true" />
+                          <strong>{mutation.label}</strong>
+                          <span>{mutation.detail}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>

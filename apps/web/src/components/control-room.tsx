@@ -29,6 +29,10 @@ import {
   type ControlPlaneSession,
 } from "../lib/control-plane-session";
 import { resolveCharterDualEval } from "@runbook/session/charter-binding";
+import {
+  buildDualCheckDiff,
+  type DualCheckDiffReport,
+} from "@runbook/session/check-diff";
 import { getExperimentDraft } from "../lib/local-store";
 import styles from "./control-room.module.css";
 
@@ -164,6 +168,7 @@ export function ControlRoom() {
   const [sessions, setSessions] = useState<ControlPlaneSession[]>([]);
   const [bindSessionId, setBindSessionId] = useState<string | null>(null);
   const [dualEval, setDualEval] = useState<CharterDualEvalResult | null>(null);
+  const [checkDiff, setCheckDiff] = useState<DualCheckDiffReport | null>(null);
   const [activeTicket, setActiveTicket] = useState<HostileTicketId>("clean-vti");
 
   const refreshSessions = useCallback(() => {
@@ -244,10 +249,32 @@ export function ControlRoom() {
     [bindSessionId],
   );
 
+  const computeCheckDiff = useCallback(
+    (proposal: TradeProposal): DualCheckDiffReport | null => {
+      if (!bindSessionId) return null;
+      let session: ControlPlaneSession;
+      try {
+        session = browserSessionStore.read(bindSessionId);
+      } catch {
+        return null;
+      }
+      // Check-by-check theater only when session charter is bound.
+      if (!session.charter) return null;
+      return buildDualCheckDiff({
+        ledgerPolicy: charter,
+        sessionPolicy: session.charter,
+        proposal,
+        enforcement: session.charterBindingEnforcement ?? "warn",
+      });
+    },
+    [bindSessionId, charter],
+  );
+
   const runPreflight = useCallback(() => {
     if (!preflight.ok) {
       setError(preflight.message);
       setDualEval(null);
+      setCheckDiff(null);
       setRan(true);
       return;
     }
@@ -255,13 +282,15 @@ export function ControlRoom() {
     setRan(true);
     const proposal = formToProposal(form);
     setDualEval(computeDualEval(proposal, preflight.result.allowed));
-  }, [preflight, form, computeDualEval]);
+    setCheckDiff(computeCheckDiff(proposal));
+  }, [preflight, form, computeDualEval, computeCheckDiff]);
 
   function updateForm<K extends keyof ProposalForm>(key: K, value: ProposalForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setRan(false);
     setError(null);
     setDualEval(null);
+    setCheckDiff(null);
   }
 
   function updateCharterField(patch: Partial<RiskPolicy>) {
@@ -270,6 +299,7 @@ export function ControlRoom() {
     setRan(false);
     setError(null);
     setDualEval(null);
+    setCheckDiff(null);
   }
 
   const loadHostileTicket = useCallback((id: HostileTicketId) => {
@@ -288,6 +318,7 @@ export function ControlRoom() {
     setRan(false);
     setError(null);
     setDualEval(null);
+    setCheckDiff(null);
   }, []);
 
   const hardPassed =
@@ -365,6 +396,7 @@ export function ControlRoom() {
               const next = e.target.value || null;
               setBindSessionId(next);
               setDualEval(null);
+              setCheckDiff(null);
               setRan(false);
               refreshSessions();
             }}
@@ -759,6 +791,65 @@ export function ControlRoom() {
             {dualEval.warningSuffix ? (
               <p className={styles.dualWarn}>{dualEval.warningSuffix.trim()}</p>
             ) : null}
+
+            {checkDiff ? (
+              <div className={styles.checkDiff} aria-label="Dual check-diff table">
+                <div className={styles.checkDiffHead}>
+                  <p className={styles.eyebrow}>Check-by-check diff</p>
+                  <h4>Ledger charter vs session charter</h4>
+                </div>
+                {checkDiff.disagreementCount > 0 ? (
+                  <p
+                    className={styles.disagreementBanner}
+                    data-disagree="true"
+                    role="status"
+                  >
+                    disagreementCount={checkDiff.disagreementCount} · mandate fidelity theater, not
+                    capital risk grade
+                  </p>
+                ) : (
+                  <p className={styles.disagreementBanner} data-disagree="false" role="status">
+                    disagreementCount=0 · check sets agree on this proposal (process layer)
+                  </p>
+                )}
+                <div className={styles.checkDiffTableWrap}>
+                  <table className={styles.checkDiffTable}>
+                    <thead>
+                      <tr>
+                        <th scope="col">Check id</th>
+                        <th scope="col">Ledger</th>
+                        <th scope="col">Session</th>
+                        <th scope="col">Agreement</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {checkDiff.checks.map((row) => (
+                        <tr key={row.id} data-agreement={row.agreement}>
+                          <td>
+                            <code>{row.id}</code>
+                            <span className={styles.checkDiffLabel}>{row.label}</span>
+                          </td>
+                          <td data-pass={row.ledgerPassed === null ? "n/a" : row.ledgerPassed ? "true" : "false"}>
+                            {row.ledgerPassed === null ? "—" : row.ledgerPassed ? "PASS" : "FAIL"}
+                          </td>
+                          <td data-pass={row.sessionPassed === null ? "n/a" : row.sessionPassed ? "true" : "false"}>
+                            {row.sessionPassed === null ? "—" : row.sessionPassed ? "PASS" : "FAIL"}
+                          </td>
+                          <td>
+                            <code>{row.agreement}</code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className={styles.checkDiffFoot}>
+                  {checkDiff.message} · brokerEffect=false · compositeScore=false · not trading
+                  performance
+                </p>
+              </div>
+            ) : null}
+
             <p className={styles.dualFoot}>
               brokerEffect=false · compositeScore=false · not trading performance · host may still
               bypass Runbook

@@ -7,7 +7,7 @@ import { PROMPT_NAMES } from "./prompts.js";
 import { STATIC_RESOURCE_URIS } from "./resources.js";
 
 export const SERVER_NAME = "runbook" as const;
-export const SERVER_VERSION = "0.4.0" as const;
+export const SERVER_VERSION = "0.4.1" as const;
 
 /** Full closed tool list in stable discovery order. */
 export const TOOL_NAMES = [
@@ -49,6 +49,7 @@ export const TOOL_NAMES = [
   "runbook_session_import_pack",
   "runbook_session_seal_capsule",
   "runbook_drift_sentinel",
+  "runbook_session_clone_challenge",
 ] as const;
 
 export type RunbookToolName = (typeof TOOL_NAMES)[number];

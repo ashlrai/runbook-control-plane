@@ -4,7 +4,7 @@ import { McpCockpit } from "@/components/mcp-cockpit";
 export const metadata: Metadata = {
   title: "MCP cockpit · Runbook",
   description:
-    "Install the local Runbook MCP companion, inspect all 38 tools (1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session), walk the golden journey checklist, run fixture demos, and validate a public snapshot offline. No hard gateway. No live broker connection.",
+    "Install the local Runbook MCP companion, inspect all 39 tools (1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session), walk the golden journey checklist, run fixture demos, and validate a public snapshot offline. No hard gateway. No live broker connection.",
 };
 
 export default function McpPage() {

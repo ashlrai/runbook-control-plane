@@ -22,6 +22,7 @@
     "smoke:all-elite": "pnpm smoke:elite && pnpm smoke:web-shadow && pnpm smoke:dossier",
     "demo:frontier": "pnpm mcp:build && node packages/mcp/dist/cli.js golden-journey",
     "demo:control-plane": "pnpm mcp:build && node packages/mcp/dist/cli.js control-plane-story",
+    "demo:elite-wave": "pnpm mcp:build && node packages/mcp/dist/cli.js elite-wave",
     "demo:elite": "pnpm --filter @runbook/shadow-lab build && pnpm mcp:build && node scripts/recursive-elite-demo.mjs",
     "demo:recursive": "pnpm demo:elite",
     "demo:tournament": "pnpm --filter @runbook/shadow-lab build && pnpm mcp:build && node packages/mcp/dist/cli.js shadow-tournament --generations 4 --mutants 4 --seed 7",

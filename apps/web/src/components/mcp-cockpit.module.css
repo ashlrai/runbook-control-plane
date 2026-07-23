@@ -141,6 +141,59 @@
 
 .boundary li:last-child { border-bottom: 0; }
 
+.surfaceLock {
+  margin: 0 clamp(20px, 4vw, 64px);
+  background: #fff;
+  border: 1px solid var(--mc-line);
+  border-top: 0;
+}
+
+.surfaceLockBody {
+  padding: 16px 18px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.surfaceLockGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.surfaceLockGrid > div {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: grid;
+  gap: 4px;
+}
+
+.surfaceLockGrid span {
+  color: var(--mc-muted);
+  font: 650 8px/1 var(--font-mono), monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.surfaceLockGrid strong {
+  font: 650 12px/1.25 var(--font-mono), monospace;
+}
+
+.surfaceLockMessage {
+  margin: 0;
+  color: #3a475c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.surfaceLockLimits {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--mc-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .layout {
   margin: 22px clamp(20px, 4vw, 64px) 64px;
   display: grid;
@@ -546,6 +599,7 @@
   .journeyList { grid-template-columns: 1fr; }
   .journeyList li { border-right: 0; }
   .headerNav { display: none; }
+  .surfaceLockGrid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

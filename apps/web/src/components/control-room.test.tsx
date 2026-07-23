@@ -139,5 +139,15 @@ describe("Control Room", () => {
         /matched-allowed|matched-denied|mismatch-session-denies|mismatch-session-allows|no-session-charter/,
       );
     });
+
+    // Check-by-check diff when session charter is bound.
+    await waitFor(() => {
+      const diff = screen.getByLabelText("Dual check-diff table");
+      expect(diff).toBeTruthy();
+      expect(diff.textContent).toMatch(/disagreementCount=/);
+      expect(diff.textContent).toMatch(/not trading performance/i);
+      expect(diff.querySelector("table")).toBeTruthy();
+      expect(diff.textContent).toMatch(/both-pass|both-fail|ledger-only|session-only|missing/);
+    });
   });
 });

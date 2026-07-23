@@ -7,10 +7,15 @@ import {
   ChevronRight,
   Layers3,
   LockKeyhole,
+  Pin,
   Search,
   ShieldAlert,
 } from "lucide-react";
 import { BrandMark } from "./brand-mark";
+import {
+  pinPresetToRegistryHandoffSession,
+  type InventoryPinPreset,
+} from "../lib/control-plane-session";
 import {
   ASSURANCE_LADDER,
   BANKING_CAPABILITIES,
@@ -53,6 +58,12 @@ export function RegistryExplorer() {
   const [effect, setEffect] = useState<EffectFilter>("all");
   const [activeFixture, setActiveFixture] = useState<FixtureSummary>(FIXTURE_SUMMARIES[1]!);
   const [driftStep, setDriftStep] = useState(0);
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinStatus, setPinStatus] = useState(
+    "Pin a public-docs projection into a browser session (process-layer only — not broker authorization).",
+  );
+  const [pinnedSessionId, setPinnedSessionId] = useState<string | null>(null);
+  const [pinnedToolCount, setPinnedToolCount] = useState<number | null>(null);
 
   const groups = useMemo(() => toolsMatching(effect, query), [effect, query]);
   const visibleCount = groups.reduce((sum, group) => sum + group.tools.length, 0);
@@ -67,6 +78,24 @@ export function RegistryExplorer() {
     if (!nextStep) return;
     const fixture = FIXTURE_SUMMARIES.find((item) => item.id === nextStep.fixtureId);
     if (fixture) setActiveFixture(fixture);
+  }
+
+  async function pinPreset(preset: InventoryPinPreset) {
+    setPinBusy(true);
+    try {
+      const result = await pinPresetToRegistryHandoffSession(preset);
+      setPinnedSessionId(result.session.sessionId);
+      setPinnedToolCount(result.toolCount);
+      setPinStatus(
+        `${result.created ? "Created" : "Updated"} session ${result.session.sessionId} · preset=${preset} · ${result.toolCount} tools pinned · not runtime-confirmed · not broker authorization`,
+      );
+    } catch (error) {
+      setPinnedSessionId(null);
+      setPinnedToolCount(null);
+      setPinStatus(error instanceof Error ? error.message : "Pin handoff failed.");
+    } finally {
+      setPinBusy(false);
+    }
   }
 
   return (
@@ -153,6 +182,63 @@ export function RegistryExplorer() {
           <em>providerToolName: null</em>
         </div>
       </div>
+
+      <section className={styles.pinHandoff} aria-labelledby="pin-handoff-title">
+        <div className={styles.pinHandoffHead}>
+          <div>
+            <p className={styles.eyebrow}>Registry → session inventory pin</p>
+            <h2 id="pin-handoff-title">Pin trading tools into a browser session</h2>
+          </div>
+          <Pin size={18} aria-hidden="true" />
+        </div>
+        <p className={styles.pinHandoffNote}>
+          Creates or updates a localStorage session labeled &quot;Registry pin handoff&quot; with a
+          public-docs projection. Process-layer admission only — not live inventory, not runtime
+          confirmation, not broker authorization. Does not block a separate brokerage MCP.
+        </p>
+        <div className={styles.pinHandoffActions}>
+          <button
+            type="button"
+            className={styles.pinBtn}
+            data-primary="true"
+            disabled={pinBusy}
+            aria-busy={pinBusy}
+            onClick={() => void pinPreset("public-docs-full")}
+          >
+            Pin trading tools as session inventory
+          </button>
+          <button
+            type="button"
+            className={styles.pinBtn}
+            disabled={pinBusy}
+            aria-busy={pinBusy}
+            onClick={() => void pinPreset("observation-only")}
+          >
+            Pin observation-only preset
+          </button>
+          <button
+            type="button"
+            className={styles.pinBtn}
+            disabled={pinBusy}
+            aria-busy={pinBusy}
+            onClick={() => void pinPreset("no-capital-order-mutation")}
+          >
+            Pin no-capital-order-mutation
+          </button>
+        </div>
+        <p className={styles.pinStatus} role="status" aria-live="polite">
+          {pinStatus}
+          {pinnedToolCount != null ? ` · tool count: ${pinnedToolCount}` : null}
+        </p>
+        {pinnedSessionId ? (
+          <Link
+            className={styles.pinSessionLink}
+            href={`/session?sessionId=${encodeURIComponent(pinnedSessionId)}`}
+          >
+            Open session {pinnedSessionId}
+          </Link>
+        ) : null}
+      </section>
 
       <div className={styles.main}>
         <section className={styles.panel} aria-labelledby="inventory-title">

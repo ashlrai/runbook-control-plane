@@ -237,6 +237,59 @@ export async function buildPublicDocsInventoryPin(input?: {
   };
 }
 
+/** Least-privilege pin presets — browser twin of package `buildInventoryPinPreset`. */
+export type InventoryPinPreset =
+  | "public-docs-full"
+  | "observation-only"
+  | "no-capital-order-mutation";
+
+/**
+ * Browser twin of `@runbook/session` `buildInventoryPinPreset`.
+ * Avoids importing `@runbook/session` root (node:fs SessionStore).
+ * Process-layer admission only — does not block a separate brokerage MCP.
+ */
+export async function buildInventoryPinPreset(
+  preset: InventoryPinPreset,
+  input?: { createdAt?: string; label?: string; admitted?: boolean; pinId?: string },
+): Promise<InventoryPin> {
+  if (preset === "public-docs-full") {
+    return buildPublicDocsInventoryPin(input);
+  }
+  const full = await buildPublicDocsInventoryPin(input);
+  const allowed =
+    preset === "observation-only"
+      ? full.tools.filter((t) => t.effectClass === "observation")
+      : full.tools.filter((t) => t.effectClass !== "capital-order-mutation");
+  const tools = allowed.map((t) => ({ ...t }));
+  return {
+    ...full,
+    pinId: input?.pinId ?? (await browserNewId("pin")),
+    label:
+      input?.label ??
+      (preset === "observation-only"
+        ? "Public-docs observation-only pin"
+        : "Public-docs no capital-order-mutation pin"),
+    tools,
+    toolSetSha256: await browserToolSetSha256(tools.map((t) => t.name)),
+    limitations: [
+      ...full.limitations,
+      `preset:${preset}`,
+      "least-privilege-projection-not-runtime-enforcement",
+      "does-not-block-separate-brokerage-mcp",
+    ],
+  };
+}
+
+export const REGISTRY_PIN_HANDOFF_LABEL = "Registry pin handoff" as const;
+
+export type PinPresetToSessionResult = {
+  session: ControlPlaneSession;
+  pin: InventoryPin;
+  created: boolean;
+  preset: InventoryPinPreset;
+  toolCount: number;
+};
+
 /** Browser twin of package `checkObservedToolsAgainstPin`. */
 export async function checkObservedToolsAgainstPin(
   pin: InventoryPin | undefined,
@@ -701,6 +754,79 @@ export class BrowserSessionStore {
 
 /** Shared singleton for dashboard + dossier attach panel. */
 export const browserSessionStore = new BrowserSessionStore();
+
+/**
+ * Pin a public-docs least-privilege preset onto a browser control-plane session.
+ * Creates the session when missing. Process-layer only — not broker authorization.
+ */
+export async function pinPresetToSession(
+  sessionId: string,
+  preset: InventoryPinPreset,
+  options?: {
+    store?: BrowserSessionStore;
+    label?: string;
+    createdAt?: string;
+  },
+): Promise<PinPresetToSessionResult> {
+  const store = options?.store ?? browserSessionStore;
+  let created = false;
+  let session: ControlPlaneSession;
+  try {
+    session = store.read(sessionId);
+  } catch {
+    session = await store.create({
+      sessionId,
+      label: options?.label ?? REGISTRY_PIN_HANDOFF_LABEL,
+      charterSeed: "elite",
+      inventoryEnforcement: "fail-closed",
+      charterBindingEnforcement: "fail-closed",
+      createdAt: options?.createdAt,
+    });
+    created = true;
+  }
+
+  const pin = await buildInventoryPinPreset(preset, {
+    label:
+      preset === "observation-only"
+        ? "Registry handoff · observation-only"
+        : preset === "no-capital-order-mutation"
+          ? "Registry handoff · no capital-order-mutation"
+          : "Registry handoff · public-docs full",
+    createdAt: options?.createdAt,
+  });
+  session = await store.setInventoryPin(session.sessionId, pin);
+  return {
+    session,
+    pin,
+    created,
+    preset,
+    toolCount: pin.tools.length,
+  };
+}
+
+/**
+ * Find an existing "Registry pin handoff" session or create one, then pin a preset.
+ */
+export async function pinPresetToRegistryHandoffSession(
+  preset: InventoryPinPreset,
+  options?: { store?: BrowserSessionStore },
+): Promise<PinPresetToSessionResult> {
+  const store = options?.store ?? browserSessionStore;
+  const existing = store.list().find((s) => s.label === REGISTRY_PIN_HANDOFF_LABEL);
+  if (existing) {
+    return pinPresetToSession(existing.sessionId, preset, { store });
+  }
+  const created = await store.create({
+    label: REGISTRY_PIN_HANDOFF_LABEL,
+    charterSeed: "elite",
+    inventoryEnforcement: "fail-closed",
+    charterBindingEnforcement: "fail-closed",
+  });
+  const pinned = await pinPresetToSession(created.sessionId, preset, { store });
+  // pinPresetToSession always reports created=false for an existing id; surface
+  // that this handoff path just created the registry session.
+  return { ...pinned, created: true };
+}
 
 /** Status-snapshot attachment derived from honest DOSSIER_COUNTS (not certification). */
 export function buildDossierStatusSnapshotAttachment(input?: {

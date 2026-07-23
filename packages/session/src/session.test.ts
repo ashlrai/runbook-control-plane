@@ -3,6 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  applyChallengeMutation,
+  buildCloneChallengeReceipt,
+  buildDualCheckDiff,
   buildInventoryPinPreset,
   buildProcessCapsulePayloads,
   buildPublicDocsInventoryPin,
@@ -347,5 +350,99 @@ describe("@runbook/session", () => {
     ]);
     expect([...paths].sort()).toEqual(paths);
     expect(drafts.every((d) => d.bytes.byteLength > 0)).toBe(true);
+  });
+
+  it("applyChallengeMutation equities-only and deny-gme", () => {
+    const multiInstrument = {
+      ...elitePolicy,
+      allowedInstruments: ["equity" as const, "option" as const, "crypto" as const],
+      deniedSymbols: [] as string[],
+    };
+
+    const equitiesOnly = applyChallengeMutation(multiInstrument, "equities-only");
+    expect(equitiesOnly.allowedInstruments).toEqual(["equity"]);
+    expect(equitiesOnly.deniedSymbols).toEqual([]);
+
+    const denyGme = applyChallengeMutation(multiInstrument, "deny-gme");
+    expect(denyGme.deniedSymbols.map((s) => s.toUpperCase())).toContain("GME");
+    expect(denyGme.allowedInstruments).toEqual(["equity", "option", "crypto"]);
+
+    // Idempotent when GME is already denied.
+    const again = applyChallengeMutation(
+      { ...elitePolicy, deniedSymbols: ["GME"] },
+      "deny-gme",
+    );
+    expect(again.deniedSymbols.filter((s) => s.toUpperCase() === "GME")).toHaveLength(1);
+  });
+
+  it("buildCloneChallengeReceipt schema", () => {
+    const receipt = buildCloneChallengeReceipt({
+      parentSessionId: "CPS-PARENT",
+      parentCharterDigest: "a".repeat(64),
+      childSessionId: "CPS-CHILD",
+      mutationId: "deny-gme",
+    });
+    expect(receipt).toMatchObject({
+      schemaVersion: "runbook.clone-challenge.v1",
+      parentSessionId: "CPS-PARENT",
+      parentCharterDigest: "a".repeat(64),
+      childSessionId: "CPS-CHILD",
+      mutationId: "deny-gme",
+      mutationLabel: "Deny GME",
+      notTradingPerformance: true,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    expect(receipt.note).toMatch(/process fork/i);
+    expect(receipt.note).toMatch(/not a safer strategy/i);
+  });
+
+  it("buildDualCheckDiff: weak ledger allows option, elite session denies under fail-closed", () => {
+    const weakLedger = {
+      capitalBudget: 10_000,
+      cashReserve: 100,
+      maxPositionPercent: 90,
+      maxOrderNotional: 9_000,
+      maxDrawdownPercent: 50,
+      maxDailyTrades: 100,
+      allowedInstruments: ["equity" as const, "option" as const, "crypto" as const],
+      allowedSymbols: [] as string[],
+      deniedSymbols: [] as string[],
+      approvalRequired: false,
+    };
+    const optionProposal = {
+      proposalId: "prop-opt-dual",
+      experimentId: "RUN-DUAL-001",
+      symbol: "SPY",
+      instrument: "option" as const,
+      side: "buy" as const,
+      notional: 50,
+      projectedPositionNotional: 50,
+      dailyTradesAfter: 1,
+      currentDrawdownPercent: 0.5,
+      hasThesis: true,
+      hasInvalidation: true,
+      evidenceSourceCount: 1,
+    };
+
+    const report = buildDualCheckDiff({
+      ledgerPolicy: weakLedger,
+      sessionPolicy: elitePolicy,
+      proposal: optionProposal,
+      enforcement: "fail-closed",
+    });
+
+    expect(report.schemaVersion).toBe("runbook.dual-check-diff.v1");
+    expect(report.ledgerAllowed).toBe(true);
+    expect(report.sessionAllowed).toBe(false);
+    expect(report.disagreementCount).toBeGreaterThanOrEqual(1);
+    expect(report.checks.some((c) => c.agreement === "ledger-only")).toBe(true);
+    expect(report.processDeniedBySession).toBe(true);
+    expect(report.processAllowed).toBe(false);
+    expect(report.charterBindingEnforcement).toBe("fail-closed");
+    expect(report.brokerEffect).toBe(false);
+    expect(report.compositeScore).toBe(false);
+    expect(report.notTradingPerformance).toBe(true);
   });
 });

@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { McpCockpit } from "./mcp-cockpit";
-import { MCP_TOOL_COUNT, MCP_TOOLS } from "../lib/mcp-cockpit-data";
+import { MCP_SERVER_VERSION, MCP_TOOL_COUNT, MCP_TOOLS } from "../lib/mcp-cockpit-data";
 
 afterEach(() => cleanup());
 
@@ -21,7 +21,8 @@ describe("MCP cockpit", () => {
       expect(text).toContain(tool.name);
     }
     expect(text).toContain(String(MCP_TOOL_COUNT));
-    expect(MCP_TOOLS).toHaveLength(33);
+    expect(MCP_TOOLS).toHaveLength(39);
+    expect(text).toContain(`v${MCP_SERVER_VERSION}`);
     expect(text).toContain("runbook://docs/boundary");
     expect(text).toContain("runbook://docs/assurance");
     expect(text).toContain("pilot-doctor");
@@ -34,6 +35,22 @@ describe("MCP cockpit", () => {
     expect(text).toMatch(/NO HARD GATEWAY/i);
     expect(text).toMatch(/composite safety score/i);
     expect(text).not.toMatch(/hard gateway is active|live broker is connected|agent certified/i);
+  });
+
+  it("shows static surface lock (0.4.1 / 39 / empty brokerExecutionTools / Runbook only)", () => {
+    render(<McpCockpit />);
+    const lock = screen.getByLabelText("Surface lock summary").textContent ?? "";
+    expect(lock).toContain("toolCount");
+    expect(lock).toContain("39");
+    expect(lock).toContain("brokerExecutionTools");
+    expect(lock).toMatch(/\[\] empty/);
+    expect(lock).toContain("openWorldHint");
+    expect(lock).toContain("false");
+    expect(lock).toMatch(/Runbook only/i);
+    expect(screen.getByRole("button", { name: /Copy surface lock summary text/i })).toBeTruthy();
+    expect(screen.getByLabelText("Surface lock limitations").textContent).toMatch(
+      /runbook-surface-only-not-host-inventory/,
+    );
   });
 
   it("toggles golden journey checklist steps", () => {

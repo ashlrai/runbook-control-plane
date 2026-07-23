@@ -1,15 +1,26 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RegistryExplorer } from "./registry-explorer";
+import {
+  BROWSER_SESSION_STORAGE_KEY,
+  browserSessionStore,
+} from "../lib/control-plane-session";
 import {
   DRIFT_ADDED_TOOLS,
   FIXTURE_SUMMARIES,
   TRADING_TOOL_COUNT,
 } from "../lib/registry-explorer-data";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("Capability Registry explorer", () => {
   it("states honesty boundary, assurance ladder, and full 50-tool inventory on first paint", () => {
@@ -78,5 +89,44 @@ describe("Capability Registry explorer", () => {
     expect(screen.getByText(/Credential-release is not spend authority/i)).toBeTruthy();
     expect(screen.getByText(/providerToolName is null/i)).toBeTruthy();
     expect(screen.getAllByText("providerToolName: null").length).toBeGreaterThan(0);
+  });
+
+  it("pins trading tools and observation-only preset into a browser session", async () => {
+    render(<RegistryExplorer />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Pin trading tools as session inventory/i }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toMatch(/tools pinned/i);
+    });
+    expect(screen.getByRole("status").textContent).toMatch(/tool count: 50/);
+    expect(screen.getByRole("status").textContent).toMatch(/not broker authorization/i);
+
+    const fullLink = screen.getByRole("link", { name: /Open session/i });
+    const sessionHref = fullLink.getAttribute("href") ?? "";
+    expect(sessionHref).toMatch(/^\/session\?sessionId=/);
+
+    const sessionId = decodeURIComponent(sessionHref.split("sessionId=")[1]!);
+    const session = browserSessionStore.read(sessionId);
+    expect(session.label).toBe("Registry pin handoff");
+    expect(session.inventoryPin?.tools).toHaveLength(50);
+    expect(session.brokerEffect).toBe(false);
+    expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain(sessionId);
+
+    fireEvent.click(screen.getByRole("button", { name: /Pin observation-only preset/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toMatch(/observation-only/);
+    });
+    const obs = browserSessionStore.read(sessionId);
+    expect(obs.inventoryPin?.tools.every((t) => t.effectClass === "observation")).toBe(true);
+    expect((obs.inventoryPin?.tools.length ?? 0) > 0).toBe(true);
+    expect(obs.inventoryPin?.tools.some((t) => t.effectClass === "capital-order-mutation")).toBe(
+      false,
+    );
+    expect(screen.getByRole("status").textContent).toMatch(
+      new RegExp(`tool count: ${obs.inventoryPin!.tools.length}`),
+    );
   });
 });

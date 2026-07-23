@@ -32,6 +32,10 @@
     "./checkpoint": {
       "types": "./src/checkpoint.ts",
       "default": "./dist/checkpoint.js"
+    },
+    "./agent-eval": {
+      "types": "./src/agent-eval.ts",
+      "default": "./dist/agent-eval.js"
     }
   },
   "scripts": {

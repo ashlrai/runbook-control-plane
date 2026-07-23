@@ -14,6 +14,7 @@ import {
 import { runCapsuleVerificationCommand } from "./capsule-command.js";
 import { runCheckpointVerificationCommand } from "./checkpoint-command.js";
 import { runControlPlaneStory } from "./control-plane-story.js";
+import { runEliteWaveStory } from "./elite-wave-story.js";
 import { runGoldenJourney } from "./golden-journey.js";
 import { diagnoseShadowPilot, shadowPilotManifestSchema } from "./pilot-doctor.js";
 import { buildPublicSnapshot } from "./public-snapshot.js";
@@ -35,6 +36,7 @@ function usage() {
     "  runbook pilot-doctor MANIFEST_PATH [--data-dir ABSOLUTE_PATH] [--ledger-id ID] [--workspace-root ABSOLUTE_PATH]",
     "  runbook golden-journey [--data-dir ABSOLUTE_PATH] [--workspace-root ABSOLUTE_PATH] [--keep-temp]",
     "  runbook control-plane-story [--data-dir ABSOLUTE_PATH] [--keep-temp] [--session-id ID] [--experiment-id ID]",
+    "  runbook elite-wave [--data-dir ABSOLUTE_PATH] [--keep-temp] [--session-id ID] [--experiment-id ID] [--skip-seal]",
     "  runbook shadow-curriculum [--policy path.json]",
     "  runbook shadow-improve [--policy path.json] [--generations N]",
     "  runbook shadow-tournament [--generations N] [--mutants N] [--seed N]",
@@ -46,6 +48,7 @@ function usage() {
     "pilot-doctor is offline and never connects to a broker. Its result is local readiness evidence, not enforcement.",
     "golden-journey runs the protocol-level shadow pilot + offline demos and prints runbook.golden-journey-receipt.v1.",
     "control-plane-story runs session spine: weak charter → pin inventory → shadow improve HFA=0 → bind experiment → agent-eval → export pack.",
+    "elite-wave extends control-plane-story with surface lock + process_tick (unknown tool stop) + process capsule seal.",
     "shadow-curriculum scores hardFalseAllows for process quality only (not trading performance).",
     "shadow-improve recursively repairs policy toward a process-quality fixed point (not capital allocation).",
     "shadow-tournament runs multi-charter Pareto search on hardFalseAllows vs hardFalseDenies (process only).",
@@ -111,6 +114,27 @@ async function main() {
       ...(sessionId !== undefined ? { sessionId } : {}),
       ...(experimentId !== undefined ? { experimentId } : {}),
       keepTempDir: keepTemp,
+    });
+    console.log(JSON.stringify(result.receipt, null, 2));
+    if (result.banner) {
+      console.log(result.banner);
+    }
+    process.exitCode = result.exitCode;
+    return;
+  }
+
+  if (command === "elite-wave") {
+    const dataDir = option(args, "--data-dir");
+    const sessionId = option(args, "--session-id");
+    const experimentId = option(args, "--experiment-id");
+    const keepTemp = args.includes("--keep-temp");
+    const skipSeal = args.includes("--skip-seal");
+    const result = await runEliteWaveStory({
+      ...(dataDir !== undefined ? { dataDir } : {}),
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(experimentId !== undefined ? { experimentId } : {}),
+      keepTempDir: keepTemp,
+      skipSeal,
     });
     console.log(JSON.stringify(result.receipt, null, 2));
     if (result.banner) {

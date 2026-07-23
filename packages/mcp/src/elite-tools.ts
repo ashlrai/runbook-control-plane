@@ -1,5 +1,6 @@
 /**
- * Elite wave tools: surface lock, process tick, pack import, process capsule seal, drift sentinel.
+ * Elite wave tools: surface lock, process tick, pack import, process capsule seal,
+ * drift sentinel, clone-challenge charter fork.
  * Process evidence only — not trading performance, not hard broker gateway.
  */
 
@@ -13,6 +14,8 @@ import {
   type CapsulePayloadMember,
 } from "@runbook/capsule-author";
 import {
+  applyChallengeMutation,
+  buildCloneChallengeReceipt,
   buildInventoryPinPreset,
   buildProcessCapsulePayloads,
   buildPublicDocsInventoryPin,
@@ -24,6 +27,7 @@ import {
   sessionFromEvidencePack,
   SessionPackImportError,
   ToolsListParseError,
+  type ChallengeMutationId,
   type InventoryPinPreset,
 } from "@runbook/session";
 import * as z from "zod/v4";
@@ -36,6 +40,14 @@ import {
   resolveSessionStore,
 } from "./session-context.js";
 import { buildSurfaceLockReceipt } from "./surface-lock.js";
+
+const CHALLENGE_MUTATION_IDS = [
+  "lower-max-order-notional",
+  "require-approval",
+  "deny-gme",
+  "equities-only",
+  "tighter-drawdown",
+] as const satisfies readonly ChallengeMutationId[];
 
 const offlineAnnotations = {
   readOnlyHint: true,
@@ -387,6 +399,77 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
         }
         throw error;
       }
+    }),
+  );
+
+  server.registerTool(
+    "runbook_session_clone_challenge",
+    {
+      title: "Clone Session Challenge Fork",
+      description:
+        "Fork a control-plane session charter with one process-rule mutation (lower notional, require approval, deny GME, equities-only, tighter drawdown). Creates a child session with digest lineage notes. Process experiment only — not a safer strategy or returns claim. brokerEffect false.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+        mutationId: z.enum(CHALLENGE_MUTATION_IDS),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.clone-challenge.v1"),
+        parentSessionId: z.string(),
+        parentCharterDigest: z.string().nullable(),
+        childSessionId: z.string(),
+        mutationId: z.enum(CHALLENGE_MUTATION_IDS),
+        mutationLabel: z.string(),
+        notTradingPerformance: z.literal(true),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+        note: z.string(),
+        receipt: z.record(z.string(), z.unknown()),
+      },
+      annotations: mutatingAnnotations,
+    },
+    withToolErrors(async (input) => {
+      const parentSessionId = await resolveSessionId(input.sessionId, options);
+      if (parentSessionId === undefined) {
+        throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+      }
+      const store = getStore(options);
+      const parent = await store.read(parentSessionId);
+      if (parent.charter === undefined) {
+        throw new Error(
+          "Parent session has no charter; set a charter before clone-challenge (process fork requires a baseline policy).",
+        );
+      }
+      const mutationId = input.mutationId as ChallengeMutationId;
+      const childCharter = applyChallengeMutation(parent.charter, mutationId);
+      const parentCharterDigest = parent.charterDigest ?? null;
+      const child = await store.create({
+        label: `Challenge ${mutationId} ← ${parentSessionId}`.slice(0, 200),
+        charter: childCharter,
+        ...(parent.inventoryPin !== undefined ? { inventoryPin: parent.inventoryPin } : {}),
+        inventoryEnforcement: parent.inventoryEnforcement,
+        charterBindingEnforcement: parent.charterBindingEnforcement,
+      });
+      await appendSessionNote(
+        store,
+        parentSessionId,
+        `clone_challenge child=${child.sessionId} mutation=${mutationId} parentDigest=${parentCharterDigest ?? "none"}`,
+      );
+      await appendSessionNote(
+        store,
+        child.sessionId,
+        `cloned_from parent=${parentSessionId} mutation=${mutationId} parentDigest=${parentCharterDigest ?? "none"}`,
+      );
+      const receipt = buildCloneChallengeReceipt({
+        parentSessionId,
+        parentCharterDigest,
+        childSessionId: child.sessionId,
+        mutationId,
+      });
+      return {
+        ...receipt,
+        receipt: jsonSafe(receipt),
+      };
     }),
   );
 }

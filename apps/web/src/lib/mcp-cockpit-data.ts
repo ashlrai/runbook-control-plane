@@ -1,7 +1,7 @@
 /**
  * Static MCP cockpit catalog for the web surface.
  * Mirrors packages/mcp closed inventory (surface.ts / tool-contract):
- * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 5 elite = 38 tools.
+ * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 6 elite = 39 tools.
  * No network, no credentials, brokerEffect always false.
  */
 
@@ -320,9 +320,64 @@ export const MCP_TOOLS: readonly McpToolRow[] = [
     lane: "elite",
     readOnly: true,
   },
+  {
+    name: "runbook_session_clone_challenge",
+    effect: "Clone session with charter challenge mutation",
+    assurance: "local-session-only",
+    lane: "elite",
+    readOnly: false,
+  },
 ] as const;
 
 export const MCP_TOOL_COUNT = MCP_TOOLS.length;
+
+/** Closed MCP surface lock constants — mirror packages/mcp/src/surface.ts (static cockpit display). */
+export const MCP_SERVER_NAME = "runbook" as const;
+export const MCP_SERVER_VERSION = "0.4.1" as const;
+
+/**
+ * Static surface-lock summary for the hosted cockpit.
+ * Attests Runbook closed inventory only — not that the host has no other MCPs.
+ */
+export const MCP_SURFACE_LOCK = {
+  schemaVersion: "runbook.surface-lock-receipt.v1" as const,
+  serverName: MCP_SERVER_NAME,
+  serverVersion: MCP_SERVER_VERSION,
+  toolCount: MCP_TOOL_COUNT,
+  brokerExecutionTools: [] as const,
+  openWorldHint: false as const,
+  hasPlaceOrCancelTools: false as const,
+  brokerEffect: false as const,
+  compositeScore: false as const,
+  attests: "Runbook only",
+  message: `Closed Runbook surface: ${MCP_TOOL_COUNT} tools, brokerExecutionTools=[], openWorldHint=false. Attests Runbook inventory only — not host MCP set. Not a hard gateway.`,
+  limitations: [
+    "runbook-surface-only-not-host-inventory",
+    "not-broker-authorization",
+    "not-proof-host-has-no-other-mcps",
+    "static-cockpit-display-not-live-receipt",
+  ] as const,
+} as const;
+
+/** Plain-text surface lock summary for clipboard copy. */
+export function formatSurfaceLockSummary(
+  lock: typeof MCP_SURFACE_LOCK = MCP_SURFACE_LOCK,
+): string {
+  return [
+    `schemaVersion: ${lock.schemaVersion}`,
+    `serverName: ${lock.serverName}`,
+    `serverVersion: ${lock.serverVersion}`,
+    `toolCount: ${lock.toolCount}`,
+    `brokerExecutionTools: []`,
+    `openWorldHint: ${String(lock.openWorldHint)}`,
+    `hasPlaceOrCancelTools: ${String(lock.hasPlaceOrCancelTools)}`,
+    `brokerEffect: ${String(lock.brokerEffect)}`,
+    `compositeScore: ${String(lock.compositeScore)}`,
+    `attests: ${lock.attests}`,
+    `message: ${lock.message}`,
+    `limitations: ${lock.limitations.join(", ")}`,
+  ].join("\n");
+}
 
 export const GOLDEN_JOURNEY_STEPS = [
   {

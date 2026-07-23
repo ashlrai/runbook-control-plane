@@ -70,6 +70,21 @@ export {
 } from "./process-capsule.js";
 
 export {
+  CHALLENGE_MUTATIONS,
+  applyChallengeMutation,
+  buildCloneChallengeReceipt,
+  type ChallengeMutationId,
+  type ChallengeMutation,
+  type CloneChallengeReceipt,
+} from "./clone-challenge.js";
+
+export {
+  buildDualCheckDiff,
+  type DualCheckDiffReport,
+  type PolicyCheckRow,
+} from "./check-diff.js";
+
+export {
   generateApprovalKeyPair,
   fingerprintSpki,
   canonicalApprovalPayload,
