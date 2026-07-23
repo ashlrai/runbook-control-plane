@@ -1,0 +1,134 @@
+.panel {
+  margin: 0 clamp(20px, 4vw, 64px) 28px;
+  background: #fff;
+  border: 1px solid #d7deea;
+}
+
+.head {
+  min-height: 64px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #d7deea;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #3157d5;
+  font: 650 9px/1 var(--font-mono), monospace;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.head h2 {
+  margin: 0;
+  font: 670 18px/1.15 var(--font-display), sans-serif;
+  letter-spacing: -.03em;
+}
+
+.badge {
+  padding: 6px 8px;
+  border: 1px solid #f0c4a8;
+  color: #9a3f12;
+  background: #fff4ec;
+  font: 650 8px/1 var(--font-mono), monospace;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.body {
+  padding: 16px 18px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.body p {
+  margin: 0;
+  color: #3a475c;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 820px;
+}
+
+.empty a {
+  color: #3157d5;
+  font-weight: 700;
+}
+
+.label {
+  display: grid;
+  gap: 6px;
+  max-width: 520px;
+  color: #5f6c80;
+  font: 650 9px/1 var(--font-mono), monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.label select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fbfcfe;
+  color: #07101f;
+  font: 550 13px/1 var(--font-mono), monospace;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.actions button {
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  color: #fff;
+  background: #3157d5;
+  box-shadow: 5px 5px 0 #c9d4ff;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.actions button:hover:not(:disabled) {
+  background: #2549bd;
+}
+
+.actions a {
+  color: #3157d5;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.status {
+  padding: 10px 12px;
+  border: 1px solid #dbe3f0;
+  background: #f6f8fc;
+  color: #3a475c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .head {
+    flex-direction: column;
+  }
+
+  .badge {
+    white-space: normal;
+  }
+}

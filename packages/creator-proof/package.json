@@ -1,0 +1,29 @@
+{
+  "name": "@runbook/creator-proof",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate:seed": "pnpm --filter @runbook/capsule-author build && pnpm build && node scripts/generate-seed.mjs",
+    "pretest": "pnpm --filter @runbook/capsule-author build && pnpm --filter @runbook/capsule-browser build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/capsule-author": "workspace:*",
+    "@runbook/capsule-browser": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,1 @@
+{"authorization_servers":["https://banking-agent.robinhood.com/mcp/banking"],"bearer_methods_supported":["header"],"resource":"https://banking-agent.robinhood.com/mcp/banking","scopes_supported":["credit-card"]}

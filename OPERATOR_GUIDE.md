@@ -1,0 +1,1 @@
+/Users/masonwyatt/Desktop/HOOD project/packages/mcp/OPERATOR_GUIDE.md

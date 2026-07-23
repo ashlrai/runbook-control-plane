@@ -1,0 +1,34 @@
+name: Feature proposal
+description: Propose a scoped capability with explicit safety boundaries.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe the repeated job or failure this would address.
+    validations:
+      required: true
+  - type: textarea
+    id: capability
+    attributes:
+      label: Proposed capability
+      description: Define the smallest useful behavior and who controls it.
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Explicit exclusions
+      description: State what authority, data, or assurance this must not add.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Success evidence
+      description: List deterministic, adversarial, privacy, accessibility, or buyer evidence required.
+    validations:
+      required: true

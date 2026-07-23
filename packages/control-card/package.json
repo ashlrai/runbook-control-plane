@@ -1,0 +1,35 @@
+{
+  "name": "@runbook/control-card",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./src/node.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate:fixture": "pnpm --filter @runbook/capsule-author build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule build && pnpm --filter @runbook/financial-bench build && pnpm build && node scripts/generate-fixture.mjs",
+    "pretest": "pnpm --filter @runbook/capsule-author build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule build && pnpm --filter @runbook/financial-bench build && pnpm build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/capsule": "workspace:*",
+    "@runbook/capsule-author": "workspace:*",
+    "@runbook/capsule-browser": "workspace:*",
+    "@runbook/financial-bench": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0"
+}

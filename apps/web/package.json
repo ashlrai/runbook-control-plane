@@ -1,0 +1,51 @@
+{
+  "name": "@runbook/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:proof-worker": "esbuild src/workers/proof-capsule.worker.ts --bundle --platform=browser --format=esm --target=es2022 --outfile=public/proof-capsule.worker.js",
+    "build:lineage-worker": "esbuild src/workers/lineage-atlas.worker.ts --bundle --platform=browser --format=esm --target=es2022 --outfile=public/lineage-atlas.worker.js",
+    "build:control-card-assets": "pnpm --filter @runbook/control-card... build && node scripts/copy-control-card-fixture.mjs",
+    "test:control-card-assets": "pnpm --filter @runbook/control-card... build && node scripts/copy-control-card-fixture.mjs --self-test",
+    "build:worker": "pnpm build:proof-worker && pnpm build:lineage-worker",
+    "predev": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/session build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule-lineage build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/financial-bench build && pnpm build:control-card-assets && pnpm build:worker",
+    "dev": "next dev",
+    "prebuild": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/session build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule-lineage build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/financial-bench build && pnpm build:control-card-assets && pnpm build:worker",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "pretest": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/session build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule-lineage build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/financial-bench build && pnpm build:control-card-assets && pnpm build:worker",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/capsule-browser": "workspace:*",
+    "@runbook/capsule-lineage": "workspace:*",
+    "@runbook/creator-proof": "workspace:*",
+    "@runbook/engine": "workspace:*",
+    "@runbook/financial-bench": "workspace:*",
+    "@runbook/session": "workspace:*",
+    "@runbook/shadow-lab": "workspace:*",
+    "lucide-react": "^1.25.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.2",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "esbuild": "0.28.1",
+    "jsdom": "29.1.1",
+    "fake-indexeddb": "^6.2.5",
+    "tailwindcss": "4.3.2",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "runbook.shadow-pilot.v1",
+  "experimentId": "RUN-SHADOW-001",
+  "mode": "shadow",
+  "brokerageConnection": "disconnected",
+  "dataSource": "synthetic",
+  "orderExecution": "disabled",
+  "capitalAtRisk": 0,
+  "publication": "manual-human-reviewed",
+  "operatorAttestations": {
+    "noBrokerCredentials": true,
+    "noBrokerOrderTools": true,
+    "noLiveExecutionImports": true,
+    "noAutomatedPublishing": true
+  }
+}

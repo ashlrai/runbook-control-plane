@@ -1,0 +1,4 @@
+fixtures/**/*.raw.json -text
+fixtures/**/*.jcs -text
+fixtures/**/SHA256SUMS text eol=lf
+fixtures/**/README.md text eol=lf

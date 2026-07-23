@@ -1,0 +1,40 @@
+{
+  "name": "@runbook/financial-bench-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "runbook-financial-bench-sandbox": "./dist/host-runner.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./adapter": {
+      "types": "./src/adapter.ts",
+      "default": "./dist/adapter.js"
+    },
+    "./node": {
+      "types": "./src/node.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && pnpm build:runner",
+    "build:runner": "node scripts/build-host-runner.mjs",
+    "test": "pnpm --filter @runbook/financial-bench-harness build && vitest run",
+    "test:docker": "RUNBOOK_DOCKER_INTEGRATION=1 vitest run src/docker-integration.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/financial-bench-harness": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.20",
+    "esbuild": "0.28.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "license": "Apache-2.0"
+}

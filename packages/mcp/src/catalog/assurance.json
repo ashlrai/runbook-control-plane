@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "runbook.assurance-vocabulary.v1",
+  "compositeScore": false,
+  "compositeScoreProhibited": true,
+  "axes": [
+    {
+      "id": "ledger",
+      "assurance": "local-tamper-evidence-only",
+      "passMeans": "Sequence, idempotency keys, and SHA-256 chain verify for the local JSONL ledger.",
+      "doesNotMean": ["external-anchor", "broker-truth", "immutable-history", "authorization"]
+    },
+    {
+      "id": "pilot-doctor",
+      "assurance": "local-attestation-and-ledger-only",
+      "passMeans": "Shadow manifest, FS privacy, zero-capital charter, and local pairing checks passed.",
+      "doesNotMean": ["system-wide-broker-disconnect", "execution-control", "human-authentication"]
+    },
+    {
+      "id": "capsule",
+      "assurance": "self-asserted-author-key-integrity",
+      "passMeans": "Draft v1 transport, membership digests, embedded public key, and author signature verify.",
+      "doesNotMean": ["author-identity", "independent-time", "broker-issuance", "investment-skill", "compliance"]
+    },
+    {
+      "id": "capability-registry",
+      "assurance": "offline-reviewed-claim-analysis",
+      "passMeans": "Snapshot/diff/admission evaluated against reviewed claim bytes and policy.",
+      "doesNotMean": ["runtime-inventory", "trade-authorization", "durable-registry-head-mutation"]
+    },
+    {
+      "id": "public-auth-metadata",
+      "assurance": "offline-fixture-or-operator-capture-analysis",
+      "passMeans": "Exact-host OAuth discovery document digests and semantic projections analyzed offline.",
+      "doesNotMean": ["token-access", "registration", "MCP-session", "least-privilege-proof"]
+    },
+    {
+      "id": "preflight",
+      "assurance": "advisory-caller-supplied-state",
+      "passMeans": "Proposal fields satisfied the active charter's deterministic checks.",
+      "doesNotMean": ["hard-gateway", "broker-enforcement", "authoritative-account-state"]
+    },
+    {
+      "id": "execution-evidence",
+      "assurance": "caller-owned-observation-only",
+      "passMeans": "Imported fill is bound to local proposal/preflight records with honest authority flags.",
+      "doesNotMean": ["brokerTruthEstablished", "humanAuthorityEstablished", "authorizationEstablished"]
+    }
+  ],
+  "limitationsAlwaysPresent": [
+    "no-broker-credentials",
+    "no-order-execution",
+    "no-composite-safety-score",
+    "advisory-not-hard-gate"
+  ]
+}

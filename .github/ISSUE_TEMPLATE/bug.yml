@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible defect using synthetic data.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, brokerage exports, private keys, or customer data. Use synthetic fixtures.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Synthetic reproduction
+      description: Provide the smallest safe reproduction and exact commands.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Commit or version
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Trust-boundary impact
+      description: Note any integrity, privacy, policy, deterministic-byte, or assurance impact.
+    validations:
+      required: true

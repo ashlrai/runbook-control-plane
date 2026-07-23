@@ -1,0 +1,50 @@
+{
+  "name": "@runbook/engine",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    "./policy": {
+      "types": "./src/policy.ts",
+      "default": "./dist/policy.js"
+    },
+    "./schema": {
+      "types": "./src/schema.ts",
+      "default": "./dist/schema.js"
+    },
+    "./ledger": {
+      "types": "./src/ledger.ts",
+      "default": "./dist/ledger.js"
+    },
+    "./content": {
+      "types": "./src/content.ts",
+      "default": "./dist/content.js"
+    },
+    "./growth": {
+      "types": "./src/growth.ts",
+      "default": "./dist/growth.js"
+    },
+    "./gateway": {
+      "types": "./src/gateway.ts",
+      "default": "./dist/gateway.js"
+    },
+    "./checkpoint": {
+      "types": "./src/checkpoint.ts",
+      "default": "./dist/checkpoint.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

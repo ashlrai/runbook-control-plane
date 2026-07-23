@@ -1,0 +1,38 @@
+{
+  "name": "@runbook/financial-dossier-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist/canonical.d.ts",
+    "dist/canonical.js",
+    "dist/constants.d.ts",
+    "dist/constants.js",
+    "dist/helpers.d.ts",
+    "dist/helpers.js",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/types.d.ts",
+    "dist/types.js",
+    "dist/validate.d.ts",
+    "dist/validate.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "pack:check": "node scripts/check-pack.mjs",
+    "test": "node scripts/test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.20",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "license": "Apache-2.0"
+}

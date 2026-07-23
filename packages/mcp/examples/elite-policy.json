@@ -1,0 +1,12 @@
+{
+  "capitalBudget": 500,
+  "cashReserve": 125,
+  "maxPositionPercent": 25,
+  "maxOrderNotional": 125,
+  "maxDrawdownPercent": 8,
+  "maxDailyTrades": 2,
+  "allowedInstruments": ["equity"],
+  "allowedSymbols": ["VTI", "BND", "VXUS"],
+  "deniedSymbols": ["GME", "AMC"],
+  "approvalRequired": true
+}

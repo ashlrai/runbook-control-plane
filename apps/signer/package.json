@@ -1,0 +1,31 @@
+{
+  "name": "@runbook/signer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "pnpm --filter @runbook/capsule-author build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/signer-browser build",
+    "build": "node scripts/build.mjs",
+    "pretest": "pnpm run prebuild",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "preverify:dist": "pnpm run prebuild",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "verify:configured-origin": "node scripts/verify-dist.mjs --configured-origin",
+    "preverify:live": "pnpm run verify:dist && pnpm run verify:configured-origin",
+    "verify:live": "node scripts/verify-live.mjs"
+  },
+  "dependencies": {
+    "@runbook/capsule-author": "workspace:*",
+    "@runbook/capsule-browser": "workspace:*",
+    "@runbook/creator-proof": "workspace:*",
+    "@runbook/signer-browser": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.8",
+    "esbuild": "0.28.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0"
+}

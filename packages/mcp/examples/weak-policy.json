@@ -1,0 +1,12 @@
+{
+  "capitalBudget": 10000,
+  "cashReserve": 100,
+  "maxPositionPercent": 90,
+  "maxOrderNotional": 9000,
+  "maxDrawdownPercent": 50,
+  "maxDailyTrades": 100,
+  "allowedInstruments": ["equity", "option", "crypto"],
+  "allowedSymbols": [],
+  "deniedSymbols": [],
+  "approvalRequired": false
+}

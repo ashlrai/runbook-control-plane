@@ -1,0 +1,39 @@
+{
+  "name": "runbook",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "setup:elite": "pnpm install && pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build && pnpm --filter @runbook/mcp build",
+    "ready:elite": "pnpm setup:elite && node scripts/print-elite-ready.mjs",
+    "mcp:build": "pnpm --filter @runbook/mcp build",
+    "mcp:test": "pnpm --filter @runbook/mcp test",
+    "mcp:golden": "pnpm --filter @runbook/mcp exec vitest run src/golden-shadow-pilot.test.ts",
+    "test:elite-journey": "pnpm --filter @runbook/mcp exec vitest run src/golden-recursive-elite.test.ts src/golden-shadow-pilot.test.ts",
+    "smoke:mcp": "pnpm mcp:build && pnpm mcp:test",
+    "smoke:elite": "pnpm --filter @runbook/shadow-lab test && pnpm --filter @runbook/mcp test",
+    "smoke:web-shadow": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/web exec vitest run src/lib/shadow-lab-browser.test.ts src/components/shadow-lab.test.tsx",
+    "smoke:dossier": "pnpm --filter @runbook/financial-dossier-process-bridge test",
+    "smoke:all-elite": "pnpm smoke:elite && pnpm smoke:web-shadow && pnpm smoke:dossier",
+    "demo:frontier": "pnpm mcp:build && node packages/mcp/dist/cli.js golden-journey",
+    "demo:elite": "pnpm --filter @runbook/shadow-lab build && pnpm mcp:build && node scripts/recursive-elite-demo.mjs",
+    "demo:recursive": "pnpm demo:elite",
+    "demo:tournament": "pnpm --filter @runbook/shadow-lab build && pnpm mcp:build && node packages/mcp/dist/cli.js shadow-tournament --generations 4 --mutants 4 --seed 7",
+    "export:public": "node scripts/public-export.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "vite": "8.1.4"
+  }
+}

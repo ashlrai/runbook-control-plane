@@ -1,0 +1,45 @@
+{
+  "name": "@runbook/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "runbook": "./dist/cli.js",
+    "runbook-mcp": "./dist/server.js",
+    "runbook-proof": "./dist/proof-cli.js"
+  },
+  "exports": {
+    ".": "./dist/server-factory.js",
+    "./service": "./dist/service.js",
+    "./public-snapshot": "./dist/public-snapshot.js",
+    "./pilot-doctor": "./dist/pilot-doctor.js",
+    "./checkpoint-command": "./dist/checkpoint-command.js",
+    "./capsule-command": "./dist/capsule-command.js"
+  },
+  "scripts": {
+    "prestart": "pnpm --filter @runbook/engine build",
+    "build": "tsc -p tsconfig.json",
+    "build:standalone": "esbuild src/proof-cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=release/runbook-proof.mjs",
+    "start": "node dist/server.js",
+    "prebuild": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build",
+    "pretest": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build && pnpm --filter @runbook/capsule build && pnpm --filter @runbook/financial-capability-registry build && pnpm --filter @runbook/public-auth-metadata build && pnpm build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@runbook/capsule": "workspace:*",
+    "@runbook/engine": "workspace:*",
+    "@runbook/financial-capability-registry": "workspace:*",
+    "@runbook/public-auth-metadata": "workspace:*",
+    "@runbook/session": "workspace:*",
+    "@runbook/shadow-lab": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

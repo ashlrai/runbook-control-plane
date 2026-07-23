@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules
+.next/
+out/
+coverage/
+dist/
+.vercel/
+.ashlr/
+
+# Deterministic release assets are rebuilt from source in tests and CI.
+apps/web/public/proof-capsule.worker.js
+apps/web/public/lineage-atlas.worker.js
+apps/web/public/control-card/
+packages/mcp/release/runbook-proof.mjs

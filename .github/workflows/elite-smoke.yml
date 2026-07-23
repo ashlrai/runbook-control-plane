@@ -1,0 +1,65 @@
+# Focused elite-path smoke for the public story:
+# engine + shadow-lab + session + mcp tests, demo:elite, and elite journey goldens.
+# No Docker, no secrets — suitable for future public CI alongside full monorepo CI.
+name: Elite smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elite-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  elite-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm from packageManager
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          # Omit version so the action reads package.json "packageManager".
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build engine
+        run: pnpm --filter @runbook/engine build
+
+      - name: Test shadow-lab
+        run: pnpm --filter @runbook/shadow-lab test
+
+      - name: Test session
+        run: pnpm --filter @runbook/session test
+
+      - name: Test mcp
+        run: pnpm --filter @runbook/mcp test
+
+      - name: Run elite recursive demo
+        # demo:elite builds shadow-lab + mcp then runs scripts/recursive-elite-demo.mjs
+        # (tmpdir ledger only; no Docker, credentials, or secrets)
+        run: pnpm demo:elite
+
+      - name: Run elite journey goldens
+        run: pnpm test:elite-journey

@@ -1,0 +1,45 @@
+{
+  "name": "@runbook/financial-dossier-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist/canonical.d.ts",
+    "dist/canonical.js",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/private/programs.d.ts",
+    "dist/private/programs.js",
+    "dist/private/runner.d.ts",
+    "dist/private/runner.js",
+    "dist/types.d.ts",
+    "dist/types.js",
+    "dist/verify.d.ts",
+    "dist/verify.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./private/runner": {
+      "types": "./dist/private/runner.d.ts",
+      "default": "./dist/private/runner.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "pack:check": "node scripts/check-pack.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/financial-dossier-adapter": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.20",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "license": "Apache-2.0"
+}

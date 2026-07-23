@@ -1,0 +1,187 @@
+[
+  {
+    "type": "charter.activated",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "version": "1.0",
+      "policy": {
+        "capitalBudget": 500,
+        "cashReserve": 125,
+        "maxPositionPercent": 25,
+        "maxOrderNotional": 125,
+        "maxDrawdownPercent": 8,
+        "maxDailyTrades": 2,
+        "allowedInstruments": ["equity"],
+        "allowedSymbols": ["VTI", "BND", "VXUS"],
+        "deniedSymbols": ["GME", "AMC", "BBBY"],
+        "approvalRequired": true
+      }
+    }
+  },
+  {
+    "type": "proposal.recorded",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-bbby-deny",
+      "experimentId": "RUN-META-SAMPLE",
+      "symbol": "BBBY",
+      "instrument": "equity",
+      "side": "buy",
+      "notional": 75,
+      "projectedPositionNotional": 75,
+      "dailyTradesAfter": 1,
+      "currentDrawdownPercent": 1,
+      "hasThesis": true,
+      "hasInvalidation": true,
+      "evidenceSourceCount": 2
+    }
+  },
+  {
+    "type": "preflight.completed",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-bbby-deny",
+      "result": {
+        "allowed": false,
+        "enforcement": "advisory",
+        "checks": [
+          {
+            "id": "symbol.not-denied",
+            "passed": false,
+            "severity": "hard",
+            "label": "symbol.not-denied",
+            "detail": "BBBY is denied"
+          },
+          {
+            "id": "instrument.allowed",
+            "passed": true,
+            "severity": "hard",
+            "label": "instrument.allowed",
+            "detail": "ok"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "proposal.recorded",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-qqq-opt-deny",
+      "experimentId": "RUN-META-SAMPLE",
+      "symbol": "QQQ",
+      "instrument": "option",
+      "side": "buy",
+      "notional": 80,
+      "projectedPositionNotional": 80,
+      "dailyTradesAfter": 1,
+      "currentDrawdownPercent": 1,
+      "hasThesis": true,
+      "hasInvalidation": true,
+      "evidenceSourceCount": 2
+    }
+  },
+  {
+    "type": "preflight.completed",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-qqq-opt-deny",
+      "result": {
+        "allowed": false,
+        "enforcement": "advisory",
+        "checks": [
+          {
+            "id": "instrument.allowed",
+            "passed": false,
+            "severity": "hard",
+            "label": "instrument.allowed",
+            "detail": "option blocked"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "proposal.recorded",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-oversize-vxus",
+      "experimentId": "RUN-META-SAMPLE",
+      "symbol": "VXUS",
+      "instrument": "equity",
+      "side": "buy",
+      "notional": 750,
+      "projectedPositionNotional": 750,
+      "dailyTradesAfter": 1,
+      "currentDrawdownPercent": 1,
+      "hasThesis": true,
+      "hasInvalidation": true,
+      "evidenceSourceCount": 2
+    }
+  },
+  {
+    "type": "preflight.completed",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-oversize-vxus",
+      "result": {
+        "allowed": false,
+        "enforcement": "advisory",
+        "checks": [
+          {
+            "id": "order.notional",
+            "passed": false,
+            "severity": "hard",
+            "label": "order.notional",
+            "detail": "oversize"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "proposal.recorded",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-clean-vti",
+      "experimentId": "RUN-META-SAMPLE",
+      "symbol": "VTI",
+      "instrument": "equity",
+      "side": "buy",
+      "notional": 50,
+      "projectedPositionNotional": 50,
+      "dailyTradesAfter": 1,
+      "currentDrawdownPercent": 1,
+      "hasThesis": true,
+      "hasInvalidation": true,
+      "evidenceSourceCount": 2
+    }
+  },
+  {
+    "type": "preflight.completed",
+    "experimentId": "RUN-META-SAMPLE",
+    "payload": {
+      "proposalId": "sample-clean-vti",
+      "result": {
+        "allowed": true,
+        "enforcement": "advisory",
+        "checks": [
+          {
+            "id": "symbol.not-denied",
+            "passed": true,
+            "severity": "hard",
+            "label": "symbol.not-denied",
+            "detail": "ok"
+          },
+          {
+            "id": "instrument.allowed",
+            "passed": true,
+            "severity": "hard",
+            "label": "instrument.allowed",
+            "detail": "ok"
+          }
+        ]
+      }
+    }
+  }
+]

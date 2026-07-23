@@ -1,0 +1,326 @@
+{
+  "schemaVersion": "runbook.tool-contract.v1",
+  "serverName": "runbook",
+  "serverVersion": "0.3.0",
+  "brokerExecutionTools": [],
+  "enforcementDefault": "advisory",
+  "tools": [
+    {
+      "name": "runbook_list_surface",
+      "effect": "closed-surface-inventory",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-discovery-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_create_experiment",
+      "effect": "records-experiment-and-charter",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-ledger-write",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_preflight_trade",
+      "effect": "records-proposal-and-advisory-checks",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "advisory-caller-supplied-state",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_record_approval",
+      "effect": "records-caller-asserted-human-decision",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "caller-owned-observation-only",
+      "openWorldHint": false,
+      "notes": "Actor type human is required but unauthenticated."
+    },
+    {
+      "name": "runbook_record_execution",
+      "effect": "imports-owner-controlled-fill-data",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "caller-owned-observation-only",
+      "openWorldHint": false,
+      "alwaysFalse": [
+        "brokerTruthEstablished",
+        "humanAuthorityEstablished",
+        "authorizationEstablished"
+      ]
+    },
+    {
+      "name": "runbook_list_events",
+      "effect": "reads-local-ledger",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-ledger-read",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_verify_ledger",
+      "effect": "verifies-hash-chain",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-tamper-evidence-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_verify_capsule",
+      "effect": "offline-capsule-verify",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "self-asserted-author-key-integrity",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_verify_capability_snapshot",
+      "effect": "offline-snapshot-verify",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "offline-reviewed-claim-analysis",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_diff_capabilities",
+      "effect": "offline-capability-diff",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "offline-reviewed-claim-analysis",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_admit_capabilities",
+      "effect": "offline-capability-admission-analysis",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "offline-reviewed-claim-analysis",
+      "openWorldHint": false,
+      "notes": "Does not mutate a durable registry head or grant broker permission."
+    },
+    {
+      "name": "runbook_inspect_public_auth_metadata",
+      "effect": "offline-public-auth-parse",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "offline-fixture-or-operator-capture-analysis",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_pilot_doctor",
+      "effect": "shadow-pilot-readiness-check",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-attestation-and-ledger-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_export_public_snapshot",
+      "effect": "metadata-only-public-export",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-ledger-read",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_run_shadow_curriculum",
+      "effect": "synthetic-curriculum-process-eval",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_improve_charter",
+      "effect": "offline-recursive-charter-refinement",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false,
+      "notes": "Does not activate refined policy on the ledger."
+    },
+    {
+      "name": "runbook_shadow_tournament",
+      "effect": "multi-charter-pareto-process-search",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false,
+      "notes": "Pareto front on hardFalseAllows then hardFalseDenies. Not trading performance."
+    },
+    {
+      "name": "runbook_activate_refined_charter",
+      "effect": "records-new-charter-activated",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-ledger-write",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_agent_eval",
+      "effect": "local-ledger-process-quality-eval",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "process-observation-only",
+      "openWorldHint": false,
+      "notes": "Not trading performance or PnL."
+    },
+    {
+      "name": "runbook_expand_curriculum_from_ledger",
+      "effect": "ledger-derived-synthetic-curriculum-candidates",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "ledger-derived-synthetic-process-labels-only",
+      "openWorldHint": false,
+      "notes": "Does not mutate the ledger. Labels are synthetic process labels, not market truth."
+    },
+    {
+      "name": "runbook_session_create",
+      "effect": "local-control-plane-session-create",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_session_get",
+      "effect": "local-control-plane-session-read",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-session-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_session_export",
+      "effect": "local-session-evidence-pack-export",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-control-plane-export-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_session_set_charter",
+      "effect": "local-session-charter-bind",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_session_pin_inventory",
+      "effect": "local-session-inventory-pin",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Default public-docs 50-tool pin; optional operator-declared names. Not runtime confirmation."
+    },
+    {
+      "name": "runbook_session_check_inventory",
+      "effect": "local-session-inventory-check",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Fail-closed by session.inventoryEnforcement when pin is present."
+    },
+    {
+      "name": "runbook_session_attach_dossier",
+      "effect": "local-session-dossier-attachment",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "architecture-evidence-not-certification",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_session_record_shadow",
+      "effect": "local-session-shadow-metrics",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false
+    },
+    {
+      "name": "runbook_approval_create_signed",
+      "effect": "local-device-key-signed-approval-intent",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-device-key-attestation-only",
+      "openWorldHint": false,
+      "notes": "Ephemeral keypair; private key not persisted. Not broker authorization."
+    },
+    {
+      "name": "runbook_approval_verify",
+      "effect": "local-device-key-approval-verify",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-device-key-attestation-only",
+      "openWorldHint": false,
+      "alwaysFalse": [
+        "humanAuthorityEstablished",
+        "authorizationEstablished"
+      ]
+    }
+  ],
+  "discoveryResources": [
+    "runbook://docs/boundary",
+    "runbook://docs/tool-contract",
+    "runbook://docs/robinhood-agentic-contract",
+    "runbook://docs/assurance",
+    "runbook://schemas/shadow-pilot-manifest",
+    "runbook://examples/shadow-pilot.manifest",
+    "runbook://examples/equity-only-charter-policy",
+    "runbook://fixtures/catalog",
+    "runbook://demos/capability-drift",
+    "runbook://demos/public-auth-offline",
+    "runbook://demos/capsule-golden",
+    "runbook://demos/shadow-pilot",
+    "runbook://demos/shadow-self-improve",
+    "runbook://playbooks/recursive-elite-process",
+    "runbook://status/dossier",
+    "runbook://docs/control-plane-session",
+    "runbook://ledger/verification"
+  ],
+  "recommendedPrompts": [
+    "runbook_explain_boundary",
+    "runbook_shadow_pilot",
+    "runbook_preflight_review",
+    "runbook_verify_artifact",
+    "runbook_offline_frontier_demo",
+    "runbook_recursive_improve",
+    "runbook_elite_recursive_loop",
+    "runbook_control_plane_session"
+  ]
+}

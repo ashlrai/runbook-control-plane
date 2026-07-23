@@ -1,0 +1,47 @@
+{
+  "name": "@runbook/financial-dossier-process-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist/common-subject.d.ts",
+    "dist/common-subject.js",
+    "dist/framing.d.ts",
+    "dist/framing.js",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/loader.mjs",
+    "dist/owned-target.d.ts",
+    "dist/owned-target.js",
+    "dist/process-attempt.d.ts",
+    "dist/process-attempt.js",
+    "dist/reference-common-subject.mjs",
+    "dist/reference-finance-000-target.mjs",
+    "dist/run.d.ts",
+    "dist/run.js",
+    "dist/types.d.ts",
+    "dist/types.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "pack:check": "node scripts/check-pack.mjs",
+    "test": "node scripts/test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@runbook/financial-dossier-adapter": "workspace:*",
+    "@runbook/financial-dossier-harness": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.20",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "license": "Apache-2.0"
+}
