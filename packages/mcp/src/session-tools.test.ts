@@ -104,7 +104,7 @@ describe("control plane session MCP tools", () => {
     });
     expect(surface.isError).not.toBe(true);
     const body = structured(surface);
-    expect(body.serverVersion).toBe("0.3.0");
+    expect(body.serverVersion).toBe("0.3.1");
     expect(body.brokerExecutionTools).toEqual([]);
     const tools = body.tools as Array<{ name: string; offline: boolean; openWorldHint: boolean }>;
     expect(tools).toHaveLength(33);
@@ -577,5 +577,120 @@ describe("control plane session MCP tools", () => {
     const session = structured(got).session as { experimentId?: string; ledgerHeadHash?: string };
     expect(session.experimentId).toBe("RUN-CREATE-BIND");
     expect(session.ledgerHeadHash).toHaveLength(64);
+  });
+
+  it("binds preflight to the session charter and flags ledger/session mismatch", async () => {
+    await harness.client.listTools();
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-PREFLIGHT-001",
+        label: "Preflight binding",
+        policy: elitePolicy,
+      },
+    });
+    await harness.client.callTool({
+      name: "runbook_session_use",
+      arguments: { sessionId: "CPS-PREFLIGHT-001" },
+    });
+
+    // Ledger experiment uses a weaker options-allowing policy; session keeps elite.
+    const weakPolicy: RiskPolicy = {
+      ...elitePolicy,
+      allowedInstruments: ["equity", "option"],
+      allowedSymbols: [],
+      deniedSymbols: [],
+      maxOrderNotional: 500,
+      capitalBudget: 1_000,
+      cashReserve: 100,
+    };
+    await harness.client.callTool({
+      name: "runbook_create_experiment",
+      arguments: {
+        experimentId: "RUN-PREFLIGHT-BIND",
+        name: "Mismatch probe",
+        question: "Does session charter dual-eval surface mismatch?",
+        benchmark: "VTI",
+        observationDays: 1,
+        policy: weakPolicy,
+        actor: { type: "agent", id: "preflight-bind" },
+        occurredAt: "2026-07-23T01:00:00.000Z",
+        sessionId: "CPS-PREFLIGHT-001",
+      },
+    });
+
+    const clean = await harness.client.callTool({
+      name: "runbook_preflight_trade",
+      arguments: {
+        proposal: {
+          proposalId: "pf-vti",
+          experimentId: "RUN-PREFLIGHT-BIND",
+          symbol: "VTI",
+          instrument: "equity",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 0.5,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 2,
+        },
+        actor: { type: "agent", id: "preflight-bind" },
+        occurredAt: "2026-07-23T01:01:00.000Z",
+        sessionId: "CPS-PREFLIGHT-001",
+      },
+    });
+    expect(clean.isError).not.toBe(true);
+    expect(structured(clean)).toMatchObject({
+      allowed: true,
+      enforcement: "advisory",
+      sessionId: "CPS-PREFLIGHT-001",
+      sessionPolicyAllowed: true,
+      sessionCharterBinding: "matched-allowed",
+      brokerEffect: false,
+    });
+    expect(String(structured(clean).sessionCharterDigest)).toHaveLength(64);
+
+    // Options allowed by weak ledger charter; elite session charter denies.
+    const optionProbe = await harness.client.callTool({
+      name: "runbook_preflight_trade",
+      arguments: {
+        proposal: {
+          proposalId: "pf-opt",
+          experimentId: "RUN-PREFLIGHT-BIND",
+          symbol: "SPY",
+          instrument: "option",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 0.5,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 2,
+        },
+        actor: { type: "agent", id: "preflight-bind" },
+        occurredAt: "2026-07-23T01:02:00.000Z",
+        sessionId: "CPS-PREFLIGHT-001",
+      },
+    });
+    expect(optionProbe.isError).not.toBe(true);
+    expect(structured(optionProbe)).toMatchObject({
+      allowed: true,
+      sessionPolicyAllowed: false,
+      sessionCharterBinding: "mismatch-session-denies",
+      brokerEffect: false,
+    });
+    expect(String(structured(optionProbe).warning)).toMatch(/Session charter would DENY/i);
+
+    const got = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-PREFLIGHT-001" },
+    });
+    const notes = (structured(got).session as { notes?: string[] }).notes ?? [];
+    expect(notes.some((n) => n.includes("preflight pf-opt") && n.includes("mismatch-session-denies"))).toBe(
+      true,
+    );
   });
 });

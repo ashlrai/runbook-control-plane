@@ -1,8 +1,8 @@
 # Runbook Operator Guide
 
 **Audience:** Mason (builder/operator) and coding agents using the Runbook MCP companion.  
-**Checkout truth date:** 2026-07-22  
-**Server surface:** `runbook` MCP `0.3.0` · closed **30** tools · `brokerExecutionTools: []`
+**Checkout truth date:** 2026-07-23  
+**Server surface:** `runbook` MCP `0.3.1` · closed **33** tools · `brokerExecutionTools: []`
 
 This guide is operational, not marketing. Prefer exact package paths and tool names over slogans. When package docs and UI copy diverge, package sources and `packages/mcp/src/surface.ts` win.
 
@@ -191,7 +191,7 @@ Key URLs immediately:
 | --- | --- |
 | `/` | Product map — three builder doors |
 | `/shadow-lab` | Curriculum / refine / tournament / meta theater |
-| `/mcp` | 30-tool inventory, install copy, golden journey checklist |
+| `/mcp` | 33-tool inventory, install copy, golden journey checklist |
 | `/session` | Control-plane session UI (charter · inventory pin · shadow · dossier) |
 | `/dossier` | Honest V2 case board |
 | `/control-room` | Live engine preflight on synthetic proposals |
@@ -221,7 +221,7 @@ Start a **new** agent task after install so tools, resources, and prompts redisc
 
 **First agent moves:**
 
-1. `runbook_list_surface` — confirm 30 tools, empty `brokerExecutionTools`.
+1. `runbook_list_surface` — confirm 33 tools, empty `brokerExecutionTools`.
 2. Read `runbook://docs/boundary` and `runbook://docs/assurance`.
 3. Prompt `runbook_shadow_pilot` or CLI `node packages/mcp/dist/cli.js golden-journey`.
 4. For elite loop: prompt `runbook_elite_recursive_loop` or `pnpm demo:elite`.
@@ -231,9 +231,9 @@ Start a **new** agent task after install so tools, resources, and prompts redisc
 
 ## 4. MCP tool catalog
 
-Server: `runbook` / `0.3.0`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **30**).  
+Server: `runbook` / `0.3.1`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **33**).  
 All tools: `openWorldHint: false`, no broker side effects. Closed inventory — do not invent tools.  
-Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **10** control-plane session.
+Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session.
 
 ### Discovery / surface (1)
 
@@ -279,18 +279,21 @@ Fixture IDs are SHA-256 pinned (`runbook://fixtures/catalog`). Unknown IDs fail 
 | `runbook_agent_eval` | Local ledger process axes | yes | `runbook.agent-eval.v1`; not PnL |
 | `runbook_expand_curriculum_from_ledger` | Derive synthetic deny scenarios from preflight fails | yes | does not mutate ledger |
 
-### Control plane session (10)
+### Control plane session (13)
 
 Local process/evidence spine via `@runbook/session`. Files under `RUNBOOK_DATA_DIR/sessions` or `~/.runbook/sessions`. **Not** a hard broker gateway; **not** trading performance; device-key signatures are local attestation only.
 
 | Tool | Effect | Read-only | Notes |
 | --- | --- | --- | --- |
 | `runbook_session_create` | Create session (label, optional policy / sessionId) | no | optional `inventoryEnforcement` |
+| `runbook_session_use` | Mark active session (local marker only) | no | writes `active-session.json`; not broker authorization |
 | `runbook_session_get` | Read session by id | yes | local filesystem only |
 | `runbook_session_export` | Evidence pack export | yes | local-control-plane-export-only |
 | `runbook_session_set_charter` | Bind advisory policy + `charterDigest` | no | does not activate ledger charter |
 | `runbook_session_pin_inventory` | Pin admitted tool inventory | no | default public-docs 50-tool research pin |
 | `runbook_session_check_inventory` | Observed tools vs pin | yes | **fail-closed** when `inventoryEnforcement: "fail-closed"` |
+| `runbook_session_import_tools_list` | Import local tools/list JSON and check vs pin | no | never network fetch; path preferred; O_NOFOLLOW ≤1MiB |
+| `runbook_session_bind_experiment` | Bind local ledger `experimentId` (+ optional head hash) | no | local id linkage only — not brokerage account binding |
 | `runbook_session_attach_dossier` | Attach architecture evidence note | no | not certification |
 | `runbook_session_record_shadow` | Record hardFalseAllows / hardFalseDenies | no | process metrics only |
 | `runbook_approval_create_signed` | Ephemeral Ed25519 approval intent | no | private key not persisted |
@@ -350,15 +353,16 @@ node packages/mcp/dist/cli.js verify-checkpoint ENVELOPE_JSON STATEMENT_JSON PUB
 
 ## 5. Control Plane Session
 
-Local **process / evidence** spine shared across MCP tools, shadow-lab metrics, and dossier attachments. Package: `@runbook/session`. Server surface includes **10** session tools (see §4).
+Local **process / evidence** spine shared across MCP tools, shadow-lab metrics, and dossier attachments. Package: `@runbook/session`. Server surface includes **13** session tools (see §4).
 
 ### What operators use it for
 
-1. **Create** a session (`runbook_session_create`) with an optional equity-only charter.
+1. **Create** a session (`runbook_session_create`) with an optional equity-only charter; optionally **use** it (`runbook_session_use`) to write the local active-session marker.
 2. **Pin inventory** (`runbook_session_pin_inventory`) — default is the public-docs 50-tool Robinhood Trading research pin; optional operator-declared `toolNames`.
-3. **Check inventory fail-closed** (`runbook_session_check_inventory`) — unknown observed tools fail when `session.inventoryEnforcement` is `"fail-closed"` (preferred for day-1 evidence). Modes: `off` | `warn` | `fail-closed`.
-4. Optionally **record shadow** metrics and **attach dossier** architecture notes; export an evidence pack.
-5. Optional demo **signed approval intent** (`runbook_approval_create_signed` / `runbook_approval_verify`) — ephemeral Ed25519; private key is not persisted; **not** broker authorization or authenticated legal human identity.
+3. **Check inventory fail-closed** (`runbook_session_check_inventory`) — unknown observed tools fail when `session.inventoryEnforcement` is `"fail-closed"` (preferred for day-1 evidence). Modes: `off` | `warn` | `fail-closed`. Optional: **import tools/list** (`runbook_session_import_tools_list`) from a local JSON path (never network fetch) and check against the pin.
+4. **Bind experiment** (`runbook_session_bind_experiment`) to a local ledger `experimentId` (+ optional head hash) — local id linkage only.
+5. Optionally **record shadow** metrics and **attach dossier** architecture notes; export an evidence pack.
+6. Optional demo **signed approval intent** (`runbook_approval_create_signed` / `runbook_approval_verify`) — ephemeral Ed25519; private key is not persisted; **not** broker authorization or authenticated legal human identity.
 
 ### Web UI
 
@@ -623,7 +627,7 @@ Before doctor reports ready: create experiment `RUN-SHADOW-001` via MCP with equ
 - Rebuild: `pnpm mcp:build`.
 - Re-add MCP with absolute `node` path to `packages/mcp/dist/server.js`.
 - Start a **new** agent task (tool list is discovered at session start).
-- Call `runbook_list_surface` — if count ≠ 30 or names drift, rebuild and retest `pnpm smoke:elite`.
+- Call `runbook_list_surface` — if count ≠ 33 or names drift, rebuild and retest `pnpm smoke:elite`.
 
 ### Capsule verify disagreements
 

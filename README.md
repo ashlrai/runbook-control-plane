@@ -5,7 +5,7 @@ Runbook is a **broker-neutral process, evidence, and control layer for financial
 | | |
 | --- | --- |
 | **Status** | Research prototype — not a production trading system |
-| **MCP** | `runbook` **v0.3.0** · closed **30-tool** inventory · `brokerExecutionTools: []` |
+| **MCP** | `runbook` **v0.3.1** · closed **33-tool** inventory · `brokerExecutionTools: []` |
 | **Capital** | Live-capital allocation: **$0** |
 | **License** | [Apache-2.0](./LICENSE) |
 | **Affiliation** | **Not affiliated with, endorsed by, or part of Robinhood Markets, Inc.** |
@@ -70,7 +70,7 @@ pnpm test && pnpm typecheck && pnpm lint && pnpm build
                                         │ stdio
                                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  @runbook/mcp  (runbook v0.3.0 · 30 tools · openWorldHint:false) │
+│  @runbook/mcp  (runbook v0.3.1 · 33 tools · openWorldHint:false) │
 │  ledger · preflight · offline verify · shadow · session · approvals│
 └───┬──────────────┬───────────────┬──────────────┬────────────────┘
     │              │               │              │
@@ -141,8 +141,8 @@ Source of truth: [`packages/mcp/src/surface.ts`](./packages/mcp/src/surface.ts).
 | Property | Value |
 | --- | --- |
 | Server name | `runbook` |
-| Server version | **`0.3.0`** |
-| Tools | **30** closed names in `TOOL_NAMES` |
+| Server version | **`0.3.1`** |
+| Tools | **33** closed names in `TOOL_NAMES` |
 | `brokerExecutionTools` | always `[]` |
 | `openWorldHint` | `false` on every tool |
 | Transport | stdio |
@@ -173,15 +173,18 @@ Source of truth: [`packages/mcp/src/surface.ts`](./packages/mcp/src/surface.ts).
 | 19 | `runbook_agent_eval` | Process-axis agent eval |
 | 20 | `runbook_expand_curriculum_from_ledger` | Synthetic labels from ledger |
 | 21 | `runbook_session_create` | Control-plane session |
-| 22 | `runbook_session_get` | Session read |
-| 23 | `runbook_session_export` | Session export |
-| 24 | `runbook_session_set_charter` | Pin charter |
-| 25 | `runbook_session_pin_inventory` | Pin tool inventory |
-| 26 | `runbook_session_check_inventory` | Drift / unknown tools |
-| 27 | `runbook_session_attach_dossier` | Attach dossier evidence |
-| 28 | `runbook_session_record_shadow` | Record shadow generation |
-| 29 | `runbook_approval_create_signed` | Ed25519-bound approval artifact |
-| 30 | `runbook_approval_verify` | Verify signed approval |
+| 22 | `runbook_session_use` | Mark active session (local marker) |
+| 23 | `runbook_session_get` | Session read |
+| 24 | `runbook_session_export` | Session export |
+| 25 | `runbook_session_set_charter` | Pin charter |
+| 26 | `runbook_session_pin_inventory` | Pin tool inventory |
+| 27 | `runbook_session_check_inventory` | Drift / unknown tools |
+| 28 | `runbook_session_import_tools_list` | Import local tools/list JSON vs pin |
+| 29 | `runbook_session_bind_experiment` | Bind local ledger experimentId |
+| 30 | `runbook_session_attach_dossier` | Attach dossier evidence |
+| 31 | `runbook_session_record_shadow` | Record shadow generation |
+| 32 | `runbook_approval_create_signed` | Ed25519-bound approval artifact |
+| 33 | `runbook_approval_verify` | Verify signed approval |
 
 There are **no** `place_*` or `cancel_*` tools. Prefer `runbook_list_surface` and resource `runbook://docs/boundary` before mutating tools.
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
   ExternalLink,
+  FileJson,
   Layers3,
   Link2,
   LockKeyhole,
@@ -15,6 +16,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Terminal,
+  Upload,
 } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 import {
@@ -23,14 +25,17 @@ import {
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   downloadEvidencePack,
+  importToolsListAgainstPin,
   refineCharterIntoSession,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
+  SAMPLE_TOOLS_LIST_JSON,
   shadowLabHrefForSession,
   shadowTrendFromSession,
   type CharterSeedKind,
   type ControlPlaneSession,
   type InventoryCheckResult,
+  type ToolsListImportResult,
 } from "../lib/control-plane-session";
 import styles from "./session-dashboard.module.css";
 
@@ -46,6 +51,8 @@ export function SessionDashboard() {
   const [charterSeed, setCharterSeed] = useState<CharterSeedKind>("elite");
   const [statusNote, setStatusNote] = useState("Browser localStorage sessions · not MCP disk store");
   const [inventoryCheck, setInventoryCheck] = useState<InventoryCheckResult | null>(null);
+  const [toolsListJson, setToolsListJson] = useState("");
+  const [toolsListImport, setToolsListImport] = useState<ToolsListImportResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
@@ -80,6 +87,7 @@ export function SessionDashboard() {
       });
       setSelectedId(session.sessionId);
       setInventoryCheck(null);
+      setToolsListImport(null);
       setStatusNote(`Created session ${session.sessionId}`);
       refresh();
     } catch (error) {
@@ -96,6 +104,7 @@ export function SessionDashboard() {
       const pin = await buildPublicDocsInventoryPin();
       await browserSessionStore.setInventoryPin(selected.sessionId, pin);
       setInventoryCheck(null);
+      setToolsListImport(null);
       setStatusNote(
         `Pinned public-docs inventory (${pin.tools.length} tools) · not runtime-confirmed`,
       );
@@ -111,10 +120,12 @@ export function SessionDashboard() {
     if (!selected) return;
     setBusy(true);
     try {
+      // Re-read from store so pin is current even if React selected state is stale.
+      const live = browserSessionStore.read(selected.sessionId);
       const result = await checkObservedToolsAgainstPin(
-        selected.inventoryPin,
+        live.inventoryPin,
         SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
-        selected.inventoryEnforcement,
+        live.inventoryEnforcement,
       );
       setInventoryCheck(result);
       setStatusNote(result.message);
@@ -125,6 +136,52 @@ export function SessionDashboard() {
       setBusy(false);
     }
   }, [selected, refresh]);
+
+  const loadSampleToolsList = useCallback(() => {
+    setToolsListJson(SAMPLE_TOOLS_LIST_JSON);
+    setToolsListImport(null);
+    setStatusNote(
+      "Loaded sample tools/list JSON (includes place_crypto_order_unknown) · local paste only",
+    );
+  }, []);
+
+  const onToolsListFile = useCallback(async (file: File | null) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const text = await file.text();
+      setToolsListJson(text);
+      setToolsListImport(null);
+      setStatusNote(`Loaded tools/list file “${file.name}” · local only · never network-fetched`);
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Could not read tools/list file.");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const importToolsList = useCallback(async () => {
+    if (!selected?.inventoryPin) return;
+    setBusy(true);
+    try {
+      const result = await importToolsListAgainstPin({
+        toolsJsonText: toolsListJson,
+        pin: selected.inventoryPin,
+        inventoryEnforcement: selected.inventoryEnforcement,
+      });
+      setToolsListImport(result);
+      setInventoryCheck(result);
+      setStatusNote(
+        `tools/list import · ${result.toolCount} tools · format=${result.parseFormat} · ${result.message}`,
+      );
+      refresh();
+    } catch (error) {
+      setToolsListImport(null);
+      setStatusNote(error instanceof Error ? error.message : "tools/list import failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [selected, toolsListJson, refresh]);
 
   const attachDossier = useCallback(async () => {
     if (!selected) return;
@@ -330,6 +387,7 @@ export function SessionDashboard() {
                   onClick={() => {
                     setSelectedId(session.sessionId);
                     setInventoryCheck(null);
+                    setToolsListImport(null);
                   }}
                 >
                   <strong>{session.label}</strong>
@@ -541,6 +599,101 @@ export function SessionDashboard() {
                         brokerEffect={String(inventoryCheck.brokerEffect)} · compositeScore=
                         {String(inventoryCheck.compositeScore)}
                       </span>
+                    </div>
+                  ) : null}
+
+                  {selected.inventoryPin ? (
+                    <div className={styles.importBlock} aria-label="tools/list inventory import">
+                      <div className={styles.importHead}>
+                        <FileJson size={14} aria-hidden="true" />
+                        <strong>Import tools/list JSON</strong>
+                        <span>vs pin · enforcement={selected.inventoryEnforcement}</span>
+                      </div>
+                      <p>
+                        Paste MCP tools/list JSON, a <code>{`{tools:[…]}`}</code> name list, or a
+                        plain string array. Local paste/file only — never network-fetched. Matches{" "}
+                        <code>runbook_session_import_tools_list</code> parse rules (max 200 tools /
+                        160-char names).
+                      </p>
+                      <label className={styles.importLabel}>
+                        tools/list JSON
+                        <textarea
+                          className={styles.toolsListTextarea}
+                          value={toolsListJson}
+                          onChange={(event) => {
+                            setToolsListJson(event.target.value);
+                            setToolsListImport(null);
+                          }}
+                          spellCheck={false}
+                          rows={8}
+                          placeholder='{"tools":[{"name":"get_accounts"},…]}'
+                          aria-label="tools/list JSON paste area"
+                        />
+                      </label>
+                      <label className={styles.importLabel}>
+                        Or choose a local file
+                        <input
+                          type="file"
+                          accept="application/json,.json,text/plain"
+                          aria-label="tools/list JSON file input"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null;
+                            void onToolsListFile(file);
+                            event.target.value = "";
+                          }}
+                          disabled={busy}
+                        />
+                      </label>
+                      <div className={styles.actions} style={{ padding: 0 }}>
+                        <button
+                          type="button"
+                          className={styles.ghostBtn}
+                          onClick={loadSampleToolsList}
+                          disabled={busy}
+                        >
+                          <Upload size={14} aria-hidden="true" />
+                          Load sample tools/list
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.primaryBtn}
+                          onClick={() => void importToolsList()}
+                          disabled={busy || toolsListJson.trim().length === 0}
+                        >
+                          <ShieldAlert size={14} aria-hidden="true" />
+                          Import &amp; check against pin
+                        </button>
+                      </div>
+                      {toolsListImport ? (
+                        <div
+                          className={styles.checkResult}
+                          data-ok={toolsListImport.ok}
+                          aria-live="polite"
+                          aria-label="tools/list import result"
+                        >
+                          <strong>
+                            {toolsListImport.ok ? "IMPORT CHECK OK" : "IMPORT FAIL-CLOSED"}
+                          </strong>
+                          <span>{toolsListImport.message}</span>
+                          <code className={styles.mono}>
+                            ok={String(toolsListImport.ok)} · toolCount=
+                            {toolsListImport.toolCount} · format={toolsListImport.parseFormat} ·
+                            enforcement={toolsListImport.enforcement}
+                          </code>
+                          {toolsListImport.unknownTools.length > 0 ? (
+                            <code className={styles.mono}>
+                              unknownTools: {toolsListImport.unknownTools.join(", ")}
+                            </code>
+                          ) : (
+                            <code className={styles.mono}>unknownTools: (none)</code>
+                          )}
+                          <span>
+                            source={toolsListImport.source} · brokerEffect=
+                            {String(toolsListImport.brokerEffect)} · compositeScore=
+                            {String(toolsListImport.compositeScore)}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

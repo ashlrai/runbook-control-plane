@@ -15,20 +15,23 @@ import {
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 describe("MCP cockpit catalog data", () => {
-  it("lists all 30 tools with brokerEffect-free lanes", () => {
-    expect(MCP_TOOL_COUNT).toBe(30);
-    expect(MCP_TOOLS).toHaveLength(30);
+  it("lists all 33 tools with brokerEffect-free lanes", () => {
+    expect(MCP_TOOL_COUNT).toBe(33);
+    expect(MCP_TOOLS).toHaveLength(33);
     expect(MCP_TOOLS.filter((t) => t.lane === "discovery")).toHaveLength(1);
     expect(MCP_TOOLS.filter((t) => t.lane === "ledger")).toHaveLength(6);
     expect(MCP_TOOLS.filter((t) => t.lane === "offline")).toHaveLength(7);
     expect(MCP_TOOLS.filter((t) => t.lane === "shadow")).toHaveLength(6);
-    expect(MCP_TOOLS.filter((t) => t.lane === "session")).toHaveLength(10);
+    expect(MCP_TOOLS.filter((t) => t.lane === "session")).toHaveLength(13);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_list_surface")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_diff_capabilities")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_pilot_doctor")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_shadow_tournament")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_expand_curriculum_from_ledger")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_session_create")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_session_use")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_session_import_tools_list")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_session_bind_experiment")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_session_check_inventory")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_approval_verify")).toBe(true);
   });

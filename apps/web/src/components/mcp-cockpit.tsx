@@ -249,7 +249,7 @@ export function McpCockpit() {
           <section className={styles.panel} aria-labelledby="tools-title">
             <div className={styles.panelHead}>
               <p className={styles.eyebrow}>Full tool inventory · {MCP_TOOL_COUNT} tools</p>
-              <h2 id="tools-title">1 discovery + 6 ledger + 7 offline + 6 shadow + 10 session · broker effect: none</h2>
+              <h2 id="tools-title">1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session · broker effect: none</h2>
             </div>
             <p
               style={{

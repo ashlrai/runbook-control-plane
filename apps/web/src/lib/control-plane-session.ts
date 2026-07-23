@@ -94,6 +94,26 @@ export const SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN = Object.freeze([
   "place_crypto_order_unknown",
 ] as const);
 
+/**
+ * Embedded sample matching `packages/mcp/examples/sample-tools-list.json`.
+ * Includes `place_crypto_order_unknown` for fail-closed inventory demos.
+ */
+export const SAMPLE_TOOLS_LIST_JSON = `{
+  "tools": [
+    { "name": "get_accounts" },
+    { "name": "get_portfolio" },
+    { "name": "get_equity_quotes" },
+    { "name": "get_equity_orders" },
+    { "name": "get_equity_positions" },
+    { "name": "search" },
+    { "name": "get_watchlists" },
+    { "name": "review_equity_order" },
+    { "name": "place_equity_order" },
+    { "name": "cancel_equity_order" },
+    { "name": "place_crypto_order_unknown" }
+  ]
+}` as const;
+
 export const SESSION_LIMITATIONS = [
   "advisory-not-hard-gateway",
   "not-trading-performance",
@@ -261,6 +281,166 @@ export async function checkObservedToolsAgainstPin(
         ? `Fail-closed: ${unknownTools.length} unknown tool(s) not in admitted pin.`
         : `Warn: ${unknownTools.length} unknown tool(s) not in admitted pin.`
       : "Observed tools are within the admitted inventory pin.",
+  };
+}
+
+// ── tools/list JSON parse (browser twin of pure package helpers) ─────────────
+// parseToolsListJson is pure, but `@runbook/session` index also exports node:fs
+// SessionStore / node:crypto digests — reimplement here to stay browser-safe.
+
+/** Max tool names accepted from a tools/list style import. */
+export const MAX_TOOLS_LIST_COUNT = 200 as const;
+/** Max length of a single tool name. */
+export const MAX_TOOL_NAME_LENGTH = 160 as const;
+
+export type ToolsListJsonFormat = "mcp-tools-list" | "named-string-array" | "string-array";
+
+export type ParsedToolsList = Readonly<{
+  toolNames: readonly string[];
+  format: ToolsListJsonFormat;
+}>;
+
+export class ToolsListParseError extends Error {
+  readonly name = "ToolsListParseError";
+
+  constructor(message = "Invalid tools/list JSON.") {
+    super(message);
+  }
+}
+
+function normalizeToolNameList(rawNames: readonly unknown[]): string[] {
+  if (rawNames.length > MAX_TOOLS_LIST_COUNT) {
+    throw new ToolsListParseError(
+      `tools/list exceeds max of ${MAX_TOOLS_LIST_COUNT} tools.`,
+    );
+  }
+  const names: string[] = [];
+  for (const entry of rawNames) {
+    if (typeof entry !== "string") {
+      throw new ToolsListParseError("Invalid tools/list JSON.");
+    }
+    const name = entry.trim();
+    if (name.length < 1 || name.length > MAX_TOOL_NAME_LENGTH) {
+      throw new ToolsListParseError(
+        `Tool name must be 1–${MAX_TOOL_NAME_LENGTH} characters.`,
+      );
+    }
+    names.push(name);
+  }
+  return [...new Set(names)].sort();
+}
+
+/**
+ * Parse MCP tools/list style JSON (or compact variants) into a sorted, de-duplicated name list.
+ *
+ * Accepted shapes:
+ * - `{ "tools": [ { "name": "..." }, ... ] }` (MCP tools/list)
+ * - `{ "tools": [ "name1", "name2" ] }`
+ * - plain string array `[ "name1", "name2" ]`
+ *
+ * Bounds: max 200 tools, names max 160 chars. Never fetches URLs.
+ */
+export function parseToolsListJson(input: unknown): ParsedToolsList {
+  if (Array.isArray(input)) {
+    return {
+      toolNames: normalizeToolNameList(input),
+      format: "string-array",
+    };
+  }
+
+  if (input === null || typeof input !== "object") {
+    throw new ToolsListParseError("Invalid tools/list JSON.");
+  }
+
+  const record = input as Record<string, unknown>;
+  if (!("tools" in record)) {
+    throw new ToolsListParseError("Invalid tools/list JSON.");
+  }
+  const tools = record.tools;
+  if (!Array.isArray(tools)) {
+    throw new ToolsListParseError("Invalid tools/list JSON.");
+  }
+  if (tools.length === 0) {
+    return { toolNames: [], format: "named-string-array" };
+  }
+
+  if (tools.every((t) => typeof t === "string")) {
+    return {
+      toolNames: normalizeToolNameList(tools),
+      format: "named-string-array",
+    };
+  }
+
+  if (
+    tools.every(
+      (t) =>
+        t !== null &&
+        typeof t === "object" &&
+        !Array.isArray(t) &&
+        typeof (t as { name?: unknown }).name === "string",
+    )
+  ) {
+    return {
+      toolNames: normalizeToolNameList(
+        tools.map((t) => (t as { name: string }).name),
+      ),
+      format: "mcp-tools-list",
+    };
+  }
+
+  throw new ToolsListParseError("Invalid tools/list JSON.");
+}
+
+/**
+ * Parse a UTF-8 JSON text body as tools/list content.
+ * Rejects URL-looking bodies (never network-fetch).
+ */
+export function parseToolsListJsonText(text: string): ParsedToolsList {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    throw new ToolsListParseError("Invalid tools/list JSON.");
+  }
+  // Defense: never treat a URL string as tools/list content.
+  if (/^https?:\/\//i.test(trimmed)) {
+    throw new ToolsListParseError("tools/list import refuses URL fetch.");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch {
+    throw new ToolsListParseError("Invalid tools/list JSON.");
+  }
+  return parseToolsListJson(parsed);
+}
+
+export type ToolsListImportResult = InventoryCheckResult & {
+  toolCount: number;
+  parseFormat: ToolsListJsonFormat;
+  sampleNames: readonly string[];
+  source: "runtime-snapshot-paste";
+};
+
+/**
+ * Parse operator-provided tools/list JSON text and check names against the session pin
+ * using the session's inventoryEnforcement mode. Local paste only — never fetches URLs.
+ */
+export async function importToolsListAgainstPin(options: {
+  toolsJsonText: string;
+  pin: InventoryPin | undefined;
+  inventoryEnforcement: "off" | "warn" | "fail-closed";
+}): Promise<ToolsListImportResult> {
+  const parsed = parseToolsListJsonText(options.toolsJsonText);
+  const check = await checkObservedToolsAgainstPin(
+    options.pin,
+    parsed.toolNames,
+    options.inventoryEnforcement,
+  );
+  return {
+    ...check,
+    toolCount: parsed.toolNames.length,
+    parseFormat: parsed.format,
+    sampleNames: parsed.toolNames.slice(0, 12),
+    source: "runtime-snapshot-paste",
   };
 }
 

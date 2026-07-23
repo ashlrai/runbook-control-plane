@@ -59,7 +59,7 @@ const productSurfaces = [
   { href: "/control-room", label: "Control Room", detail: "Local charter + real engine preflight tickets" },
   { href: "/shadow-lab", label: "Shadow Process Lab", detail: "Recursive refine · multi-charter tournament · meta-curriculum" },
   { href: "/dossier", label: "Dossier status", detail: "31-case architecture board · not buyer-ready" },
-  { href: "/mcp", label: "MCP cockpit", detail: "Install, 30 tools, golden journey, fixture demos" },
+  { href: "/mcp", label: "MCP cockpit", detail: "Install, 33 tools, golden journey, fixture demos" },
   { href: "/lineage", label: "Lineage atlas", detail: "Multi-capsule graph, offline only" },
   { href: "/trust", label: "Trust center", detail: "Metadata snapshot inspection + limits" },
   { href: "/proof-capsule", label: "Proof capsule", detail: "Portable evidence packaging story" },

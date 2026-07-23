@@ -10,13 +10,18 @@ import {
   browserCharterDigest,
   checkObservedToolsAgainstPin,
   elitePolicy,
+  importToolsListAgainstPin,
   parseSessionIdQuery,
+  parseToolsListJson,
+  parseToolsListJsonText,
   refineCharterIntoSession,
   resolveSessionCharterSeed,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
+  SAMPLE_TOOLS_LIST_JSON,
   shadowLabHrefForSession,
   shadowTrendFromSession,
+  ToolsListParseError,
   weakPolicy,
   writeShadowLoopToSession,
 } from "./control-plane-session";
@@ -112,6 +117,62 @@ describe("control-plane-session browser adapter", () => {
     expect(raw).toBeTruthy();
     expect(raw).toContain("CPS-WEB-TEST-001");
     expect(store.list()).toHaveLength(1);
+  });
+
+  it("parseToolsListJson accepts MCP tools/list, string-array, and plain array forms", () => {
+    const mcp = parseToolsListJson({
+      tools: [{ name: "get_portfolio" }, { name: "get_accounts" }, { name: "get_accounts" }],
+    });
+    expect(mcp.format).toBe("mcp-tools-list");
+    expect(mcp.toolNames).toEqual(["get_accounts", "get_portfolio"]);
+
+    const named = parseToolsListJson({ tools: ["get_portfolio", "get_accounts"] });
+    expect(named.format).toBe("named-string-array");
+    expect(named.toolNames).toEqual(["get_accounts", "get_portfolio"]);
+
+    const plain = parseToolsListJson(["get_equity_quotes", "get_accounts"]);
+    expect(plain.format).toBe("string-array");
+    expect(plain.toolNames).toEqual(["get_accounts", "get_equity_quotes"]);
+
+    expect(() => parseToolsListJson({ tools: [{ description: "no name" }] })).toThrow(
+      ToolsListParseError,
+    );
+    expect(() => parseToolsListJson({ tools: ["x".repeat(161)] })).toThrow(ToolsListParseError);
+    expect(() =>
+      parseToolsListJson({ tools: Array.from({ length: 201 }, (_, i) => `t${i}`) }),
+    ).toThrow(ToolsListParseError);
+    expect(() => parseToolsListJsonText("https://example.com/tools.json")).toThrow(
+      ToolsListParseError,
+    );
+    expect(parseToolsListJsonText('["get_accounts"]')).toEqual({
+      toolNames: ["get_accounts"],
+      format: "string-array",
+    });
+  });
+
+  it("importToolsListAgainstPin fail-closes sample tools/list with place_crypto_order_unknown", async () => {
+    const pin = await buildPublicDocsInventoryPin({
+      createdAt: "2026-07-23T00:00:00.000Z",
+      pinId: "pin-import-1",
+    });
+    const sample = parseToolsListJsonText(SAMPLE_TOOLS_LIST_JSON);
+    expect(sample.format).toBe("mcp-tools-list");
+    expect(sample.toolNames).toContain("place_crypto_order_unknown");
+    expect(sample.toolNames).toContain("get_accounts");
+
+    const result = await importToolsListAgainstPin({
+      toolsJsonText: SAMPLE_TOOLS_LIST_JSON,
+      pin,
+      inventoryEnforcement: "fail-closed",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.unknownTools).toEqual(["place_crypto_order_unknown"]);
+    expect(result.toolCount).toBe(sample.toolNames.length);
+    expect(result.parseFormat).toBe("mcp-tools-list");
+    expect(result.source).toBe("runtime-snapshot-paste");
+    expect(result.brokerEffect).toBe(false);
+    expect(result.compositeScore).toBe(false);
+    expect(result.message).toMatch(/Fail-closed/i);
   });
 
   it("persists multiple sessions and selects latest list order", async () => {

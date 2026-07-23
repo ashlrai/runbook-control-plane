@@ -3,7 +3,7 @@
 Maps public-facing claims (README, MCP resources, web copy) to **code or demo evidence** in this checkout.  
 Prefer package sources over marketing docs when they disagree. Surface inventory truth: [`packages/mcp/src/surface.ts`](../packages/mcp/src/surface.ts).
 
-**Checkout reference:** MCP server `runbook` **v0.3.0**, **30** tools in `TOOL_NAMES`.
+**Checkout reference:** MCP server `runbook` **v0.3.1**, **33** tools in `TOOL_NAMES`.
 
 | # | Public claim | Evidence (code / demo) | Notes / non-claim |
 | --- | --- | --- | --- |
@@ -11,7 +11,7 @@ Prefer package sources over marketing docs when they disagree. Surface inventory
 | 2 | **No place / cancel order tools** | `TOOL_NAMES` in `packages/mcp/src/surface.ts` — no `place_*` / `cancel_*`; notes: `"Closed inventory: no place_* or cancel_* tools."`; golden asserts in `packages/mcp/src/golden-journey.ts`, `golden-recursive-elite.test.ts`, `golden-shadow-pilot.test.ts` | Host may still load a separate brokerage MCP that *does* have place tools — Runbook cannot block that |
 | 3 | **`brokerExecutionTools` is always empty** | `SurfaceInventory.brokerExecutionTools: []` in `surface.ts` `buildSurfaceInventory()`; schema `z.array(z.string()).max(0)` in `packages/mcp/src/server-factory.ts` | Empty list is a surface property, not proof that the host never executes elsewhere |
 | 4 | **Every tool has `openWorldHint: false`** | `buildSurfaceInventory()` maps each tool with `openWorldHint: false as const`; inventory field `openWorldHint: false` | Offline-ness of *side effects* still varies by tool; see `OFFLINE_TOOL_NAMES` set |
-| 5 | **Closed MCP inventory count + version** | `SERVER_VERSION = "0.3.0"`; `TOOL_NAMES` length **30** in `packages/mcp/src/surface.ts`; discoverable via `runbook_list_surface` | Older docs that say “20 tools” / `0.2.0` are stale relative to this file |
+| 5 | **Closed MCP inventory count + version** | `SERVER_VERSION = "0.3.1"`; `TOOL_NAMES` length **33** in `packages/mcp/src/surface.ts`; discoverable via `runbook_list_surface` | Older docs that say “20 tools” / `0.2.0` or “30 tools” / `0.3.0` are stale relative to this file |
 | 6 | **No brokerage credentials in product path** | Boundary rule 1 in `packages/mcp/src/catalog/boundary.md`; `SECURITY.md` scope; ledger/schema rejection patterns in `@runbook/engine` ledger/policy tests | Operators must still avoid pasting secrets into free-text fields |
 | 7 | **Preflight is advisory, not a hard broker gateway** | Boundary rule 3; tool `runbook_preflight_trade` description in MCP server factory; operator guide: “a direct broker tool can bypass Runbook” | `allowed: true` ≠ account-wide enforcement |
 | 8 | **Approvals are caller-asserted (not authenticated human authority)** | Boundary rule 4; execution evidence flags `humanAuthorityEstablished: false` / `authorizationEstablished: false` (operator guide §1 hard facts); gateway evaluator docs in private `README.md` “Authorization-conditions evaluator” | Signed approval tools (`runbook_approval_*`) bind keys to action digests; they still do not execute trades |
@@ -43,10 +43,10 @@ pnpm demo:frontier
 
 ## Documentation lockstep
 
-Public/operator docs should match `surface.ts` (`30` tools, `0.3.0`):
+Public/operator docs should match `surface.ts` (`33` tools, `0.3.1`):
 
 - `packages/mcp/README.md`, `packages/mcp/OPERATOR_GUIDE.md`, `README.public.md`
 - Web cockpit: `apps/web/src/lib/mcp-cockpit-data.ts` (+ `/mcp` copy)
 
-Re-scan with: `rg -n "0\\.2\\.0|20 tools|TOOL count" packages/mcp apps/web README.public.md`  
-(Intentional historical mentions only — e.g. test client version strings, lockfile package versions.)
+Re-scan with: `rg -n "0\\.3\\.0|30 tools|0\\.2\\.0|20 tools" packages/mcp apps/web README.public.md docs/PUBLIC_CLAIM_MATRIX.md`  
+(Intentional historical mentions only — e.g. test client version strings, lockfile package versions, claim-matrix “stale relative to” notes.)

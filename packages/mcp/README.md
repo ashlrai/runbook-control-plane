@@ -6,8 +6,8 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.3.0` |
-| Tools | 30 (closed inventory; `brokerExecutionTools: []`) |
+| Server name / version | `runbook` / `0.3.1` |
+| Tools | 33 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |
 | Composite safety score | **prohibited** |
@@ -29,7 +29,7 @@ pnpm demo:frontier
 pnpm demo:elite
 # Optional: multi-charter Pareto tournament
 pnpm demo:tournament
-# Optional smokes (closed 30-tool surface + shadow + dossier)
+# Optional smokes (closed 33-tool surface + shadow + dossier)
 pnpm smoke:elite          # @runbook/shadow-lab + @runbook/mcp tests
 pnpm smoke:web-shadow     # web vitest for shadow-lab UI/browser adapter
 pnpm smoke:dossier        # financial-dossier-process-bridge tests
@@ -85,10 +85,10 @@ A direct brokerage tool can bypass Runbook. Human confirmation must remain enabl
 
 ---
 
-## Full tool table (30)
+## Full tool table (33)
 
 All tools advertise `openWorldHint: false` and `brokerEffect: false` (or no broker side effects).  
-Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **10** control-plane session.
+Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session.
 
 ### Discovery
 
@@ -130,18 +130,21 @@ Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **10*
 | `runbook_agent_eval` | Local ledger process axes (`runbook.agent-eval.v1`) | yes | process-observation-only |
 | `runbook_expand_curriculum_from_ledger` | Derive synthetic deny scenarios from local preflight fails | yes | ledger-derived-synthetic-process-labels-only |
 
-### Control plane session (10)
+### Control plane session (13)
 
 Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DIR/sessions` or `~/.runbook/sessions`. Not a hard broker gateway; not trading performance.
 
 | Tool | Effect | Read-only | Assurance |
 | --- | --- | --- | --- |
 | `runbook_session_create` | Create session (label, optional policy / sessionId) | no | local-session-only |
+| `runbook_session_use` | Mark active session (local `active-session.json` marker only) | no | local-session-only |
 | `runbook_session_get` | Read session by id | yes | local-session-only |
 | `runbook_session_export` | Evidence pack export | yes | local-control-plane-export-only |
 | `runbook_session_set_charter` | Bind advisory policy + `charterDigest` | no | local-session-only |
 | `runbook_session_pin_inventory` | Default public-docs pin or operator-declared names | no | local-session-only |
 | `runbook_session_check_inventory` | Observed tools vs pin (`inventoryEnforcement`, fail-closed default path) | yes | local-session-only |
+| `runbook_session_import_tools_list` | Import local tools/list JSON and check vs pin (never network fetch) | no | local-session-only |
+| `runbook_session_bind_experiment` | Bind local ledger `experimentId` (+ optional head hash) | no | local-session-only |
 | `runbook_session_attach_dossier` | Attach architecture evidence note | no | architecture-evidence-not-certification |
 | `runbook_session_record_shadow` | Record hardFalseAllows / hardFalseDenies | no | synthetic-curriculum-process-quality-only |
 | `runbook_approval_create_signed` | Ephemeral Ed25519 approval intent; private key not persisted | no | local-device-key-attestation-only |

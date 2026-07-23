@@ -136,4 +136,38 @@ describe("Session dashboard", () => {
     expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain("Dashboard demo");
     clickSpy.mockRestore();
   });
+
+  it("imports tools/list sample JSON and fail-closes on place_crypto_order_unknown", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Tools list import" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Tools list import/i })).toBeTruthy();
+    });
+
+    // Import UI only when pin exists.
+    expect(screen.queryByLabelText("tools/list inventory import")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Pin public-docs inventory/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("tools/list inventory import")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Load sample tools\/list/i }));
+    const textarea = screen.getByLabelText("tools/list JSON paste area") as HTMLTextAreaElement;
+    expect(textarea.value).toContain("place_crypto_order_unknown");
+
+    fireEvent.click(screen.getByRole("button", { name: /Import & check against pin/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("tools/list import result")).toBeTruthy();
+      expect(screen.getByText("IMPORT FAIL-CLOSED")).toBeTruthy();
+      expect(screen.getByText(/unknownTools: place_crypto_order_unknown/i)).toBeTruthy();
+      expect(screen.getByText(/ok=false/i)).toBeTruthy();
+    });
+  });
 });

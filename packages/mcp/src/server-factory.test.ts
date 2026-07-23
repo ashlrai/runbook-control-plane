@@ -151,7 +151,7 @@ describe("Runbook MCP protocol", () => {
     expect(result.structuredContent).toMatchObject({
       schemaVersion: "runbook.surface-inventory.v1",
       serverName: "runbook",
-      serverVersion: "0.3.0",
+      serverVersion: "0.3.1",
       brokerExecutionTools: [],
       openWorldHint: false,
     });

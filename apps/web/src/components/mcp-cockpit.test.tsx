@@ -21,7 +21,7 @@ describe("MCP cockpit", () => {
       expect(text).toContain(tool.name);
     }
     expect(text).toContain(String(MCP_TOOL_COUNT));
-    expect(MCP_TOOLS).toHaveLength(20);
+    expect(MCP_TOOLS).toHaveLength(33);
     expect(text).toContain("runbook://docs/boundary");
     expect(text).toContain("runbook://docs/assurance");
     expect(text).toContain("pilot-doctor");

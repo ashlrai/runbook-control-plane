@@ -1,7 +1,7 @@
 /**
  * Static MCP cockpit catalog for the web surface.
  * Mirrors packages/mcp closed inventory (surface.ts / tool-contract):
- * 1 discovery + 6 ledger + 7 offline + 6 shadow + 10 session = 30 tools.
+ * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session = 33 tools.
  * No network, no credentials, brokerEffect always false.
  */
 
@@ -48,7 +48,7 @@ export const MCP_OPERATOR_DOCS = MCP_OPERATOR_GUIDE_EXISTS
       sections: [
         { anchor: "agent-quickstart-5-minutes", title: "Agent quickstart (5 minutes)" },
         { anchor: "safety-boundary", title: "Safety boundary" },
-        { anchor: "full-tool-table-30", title: "Full tool table (30)" },
+        { anchor: "full-tool-table-33", title: "Full tool table (33)" },
         { anchor: "offline-shadow-pilot-doctor", title: "Offline shadow-pilot doctor" },
       ] as const,
     };
@@ -202,6 +202,13 @@ export const MCP_TOOLS: readonly McpToolRow[] = [
     readOnly: false,
   },
   {
+    name: "runbook_session_use",
+    effect: "Mark active session (local marker only)",
+    assurance: "local-session-only",
+    lane: "session",
+    readOnly: false,
+  },
+  {
     name: "runbook_session_get",
     effect: "Read control-plane session by id",
     assurance: "local-session-only",
@@ -235,6 +242,20 @@ export const MCP_TOOLS: readonly McpToolRow[] = [
     assurance: "local-session-only",
     lane: "session",
     readOnly: true,
+  },
+  {
+    name: "runbook_session_import_tools_list",
+    effect: "Import local tools/list JSON and check vs pin",
+    assurance: "local-session-only",
+    lane: "session",
+    readOnly: false,
+  },
+  {
+    name: "runbook_session_bind_experiment",
+    effect: "Bind local ledger experimentId (+ optional head hash)",
+    assurance: "local-session-only",
+    lane: "session",
+    readOnly: false,
   },
   {
     name: "runbook_session_attach_dossier",
