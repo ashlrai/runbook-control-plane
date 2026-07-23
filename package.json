@@ -28,8 +28,8 @@
     "export:public": "node scripts/public-export.mjs",
     "sync:public": "node scripts/sync-public-repo.mjs",
     "sync:public:push": "node scripts/sync-public-repo.mjs --push",
-    "deploy:web": "cd apps/web && vercel --prod --yes",
-    "deploy:web:preview": "cd apps/web && vercel --yes"
+    "deploy:web": "vercel --prod --yes --scope evero",
+    "deploy:web:preview": "vercel --yes --scope evero"
   },
 
   "pnpm": {

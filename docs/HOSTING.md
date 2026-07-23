@@ -46,10 +46,19 @@ vercel domains add runbook.ashlr.ai
 vercel alias set <deployment-url> runbook.ashlr.ai
 ```
 
-**Current production alias:** `https://runbook-pi.vercel.app`  
-**Intended custom domain:** `https://runbook.ashlr.ai` (DNS CNAME already points at Vercel; attach domain from the team that owns `ashlr.ai`)
+| | |
+| --- | --- |
+| **Custom domain** | **https://runbook.ashlr.ai** (live on team `evero`) |
+| **Vercel project** | `evero/runbook` |
+| **Prod aliases** | `https://runbook-six.vercel.app` · deployment URLs under `*.vercel.app` |
+| **CLI account** | Owner account that can scope `--scope evero` (e.g. `masonwyatt23`) |
 
-Or one-shot scripts:
+```bash
+# Deploy (monorepo root, linked to evero/runbook)
+vercel --prod --yes --scope evero
+```
+
+Or one-shot scripts (after `vercel link --scope evero --project runbook`):
 
 ```bash
 pnpm deploy:web          # production
