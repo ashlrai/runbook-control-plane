@@ -157,7 +157,7 @@ export const ASSURANCE_JSON = `{
 export const TOOL_CONTRACT_JSON = `{
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.2",
+  "serverVersion": "0.4.3",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -538,6 +538,41 @@ export const TOOL_CONTRACT_JSON = `{
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "One-rule charter fork into a child session. Process experiment only — not safer strategy or returns."
+    },
+    {
+      "name": "runbook_dual_check_diff",
+      "effect": "dual-check-diff-theater",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "process-observation-only",
+      "openWorldHint": false,
+      "notes": "Check-by-check ledger vs session charter. Mandate fidelity theater — not capital risk grade."
+    },
+    {
+      "name": "runbook_session_attach_surface_lock",
+      "effect": "attach-surface-lock-operator-note",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "architecture-evidence-not-certification",
+      "openWorldHint": false,
+      "notes": "buildSurfaceLockReceipt → dossier operator-note; evidenceRef=toolSetSha256. Attests Runbook inventory only."
+    },
+    {
+      "name": "runbook_gateway_quorum_demo",
+      "effect": "gateway-quorum-local-theater",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-policy-theater-only",
+      "openWorldHint": false,
+      "notes": "In-process authorize/deny/replay with ephemeral keys. policy.activate only — not broker order submission. humanAuthorityEstablished and authorizationEstablished always false.",
+      "alwaysFalse": [
+        "humanAuthorityEstablished",
+        "authorizationEstablished",
+        "brokerEffect"
+      ]
     }
   ],
   "discoveryResources": [

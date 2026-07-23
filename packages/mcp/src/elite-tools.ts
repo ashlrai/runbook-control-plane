@@ -1,6 +1,6 @@
 /**
  * Elite wave tools: surface lock, process tick, pack import, process capsule seal,
- * drift sentinel, clone-challenge charter fork.
+ * drift sentinel, clone-challenge, dual check-diff, gateway quorum demo.
  * Process evidence only — not trading performance, not hard broker gateway.
  */
 
@@ -34,6 +34,7 @@ import {
 import { WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import * as z from "zod/v4";
 import { runDriftSentinel } from "./drift-sentinel.js";
+import { runGatewayQuorumDemo } from "./gateway-demo.js";
 import type { OfflineToolsOptions } from "./offline-tools.js";
 import { withToolErrors } from "./protocol.js";
 import {
@@ -541,5 +542,110 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
         report: jsonSafe(report),
       };
     }),
+  );
+
+  server.registerTool(
+    "runbook_session_attach_surface_lock",
+    {
+      title: "Attach Surface Lock to Session",
+      description:
+        "Build a closed-surface lock receipt and attach it to a control-plane session as a dossier operator-note (toolCount, version, toolSetSha256, message). evidenceRef is toolSetSha256. Attests Runbook inventory only — not host MCP exclusivity. Process evidence; brokerEffect false.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.session-attach-surface-lock.v1"),
+        sessionId: z.string(),
+        attachmentCount: z.number().int().nonnegative(),
+        attachmentId: z.string(),
+        toolCount: z.number().int(),
+        serverVersion: z.string(),
+        toolSetSha256: z.string(),
+        message: z.string(),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+        receipt: z.record(z.string(), z.unknown()),
+      },
+      annotations: mutatingAnnotations,
+    },
+    withToolErrors(async (input) => {
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      if (sessionId === undefined) {
+        throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+      }
+      const receipt = buildSurfaceLockReceipt();
+      const summary =
+        `toolCount=${receipt.toolCount} · version=${receipt.serverVersion} · toolSetSha256=${receipt.toolSetSha256} · ${receipt.message}`.slice(
+          0,
+          1_000,
+        );
+      const store = getStore(options);
+      const session = await store.attachDossier(sessionId, {
+        kind: "operator-note",
+        scenarioIds: [],
+        summary,
+        evidenceRef: receipt.toolSetSha256,
+        honestLabel: "architecture-evidence-not-certification",
+      });
+      const attachment = session.dossierAttachments[session.dossierAttachments.length - 1];
+      if (attachment === undefined) {
+        throw new Error("Surface lock attachment missing after dossier attach.");
+      }
+      await appendSessionNote(
+        store,
+        sessionId,
+        `attach_surface_lock toolCount=${receipt.toolCount} version=${receipt.serverVersion} sha=${receipt.toolSetSha256}`,
+      );
+      return {
+        schemaVersion: "runbook.session-attach-surface-lock.v1" as const,
+        sessionId: session.sessionId,
+        attachmentCount: session.dossierAttachments.length,
+        attachmentId: attachment.attachmentId,
+        toolCount: receipt.toolCount,
+        serverVersion: receipt.serverVersion,
+        toolSetSha256: receipt.toolSetSha256,
+        message: receipt.message,
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        capitalAtRisk: 0 as const,
+        receipt: jsonSafe(receipt),
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_gateway_quorum_demo",
+    {
+      title: "Gateway Quorum Demo (Local Theater)",
+      description:
+        "In-process multi-party authorization theater using ephemeral Ed25519 keys: authorize (2-role quorum), deny (missing risk), and replay (prior fingerprint). actionType is policy.activate — not broker order submission. Local policy theater only; humanAuthorityEstablished and authorizationEstablished always false; brokerEffect false.",
+      inputSchema: {},
+      outputSchema: {
+        schemaVersion: z.literal("runbook.gateway-quorum-demo.v1"),
+        actionType: z.literal("policy.activate"),
+        scenarios: z.array(
+          z.object({
+            id: z.enum(["authorize", "deny", "replay"]),
+            decision: z.enum(["authorize", "deny", "replay"]),
+            authorizationConditionsSatisfied: z.boolean(),
+            checks: z.array(
+              z.object({
+                code: z.string(),
+                passed: z.boolean(),
+              }),
+            ),
+          }),
+        ),
+        humanAuthorityEstablished: z.literal(false),
+        authorizationEstablished: z.literal(false),
+        brokerEffect: z.literal(false),
+        notBrokerOrderSubmission: z.literal(true),
+        localPolicyTheaterOnly: z.literal(true),
+        note: z.string(),
+      },
+      annotations: offlineAnnotations,
+    },
+    withToolErrors(async () => runGatewayQuorumDemo()),
   );
 }

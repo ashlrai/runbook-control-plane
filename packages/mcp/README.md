@@ -6,7 +6,7 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.4.2` |
+| Server name / version | `runbook` / `0.4.3` |
 | Tools | 39 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |
@@ -29,7 +29,7 @@ pnpm demo:frontier
 pnpm demo:elite
 # Optional: multi-charter Pareto tournament
 pnpm demo:tournament
-# Optional smokes (closed 40-tool surface + shadow + dossier)
+# Optional smokes (closed 42-tool surface + shadow + dossier)
 pnpm smoke:elite          # @runbook/shadow-lab + @runbook/mcp tests
 pnpm smoke:web-shadow     # web vitest for shadow-lab UI/browser adapter
 pnpm smoke:dossier        # financial-dossier-process-bridge tests
@@ -150,7 +150,7 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_approval_create_signed` | Ephemeral Ed25519 approval intent; private key not persisted | no | local-device-key-attestation-only |
 | `runbook_approval_verify` | Verify signed intent with public SPKI base64 | yes | local-device-key-attestation-only |
 
-### Elite process (6)
+### Elite process (9)
 
 | Tool | Effect | Read-only | Assurance |
 | --- | --- | --- | --- |
@@ -160,6 +160,9 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_session_seal_capsule` | Seal session as synthetic process Proof Capsule | no | self-asserted-author-key-integrity-only |
 | `runbook_drift_sentinel` | tools/list + pin fail-closed drift receipt | yes | local-session-only |
 | `runbook_session_clone_challenge` | One-rule charter fork into a child session | no | local-session-only |
+| `runbook_dual_check_diff` | Ledger vs session charter check-by-check theater | yes | process-observation-only |
+| `runbook_session_attach_surface_lock` | Attach surface lock receipt as dossier operator-note | no | architecture-evidence-not-certification |
+| `runbook_gateway_quorum_demo` | Local gateway quorum authorize/deny/replay theater | yes | local-policy-theater-only |
 
 Web UI theater: `/session`. Prompt: `runbook_control_plane_session`.
 

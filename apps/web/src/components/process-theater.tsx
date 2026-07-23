@@ -214,6 +214,7 @@ export function ProcessTheater() {
         <nav className={styles.headerNav} aria-label="Theater navigation">
           <Link href="/showcase">Showcase</Link>
           <Link href="/session">Session</Link>
+          <Link href="/gateway">Gateway</Link>
           <Link href="/verify">Verify</Link>
           <Link href="/control-room">Control Room</Link>
         </nav>

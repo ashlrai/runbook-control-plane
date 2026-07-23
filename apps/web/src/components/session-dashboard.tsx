@@ -10,6 +10,7 @@ import {
   Layers3,
   Link2,
   LockKeyhole,
+  PackageCheck,
   Pin,
   Plus,
   Radio,
@@ -32,6 +33,10 @@ import {
   type ChallengeMutationId,
 } from "@runbook/session/clone-challenge";
 import { BrandMark } from "./brand-mark";
+import {
+  downloadSealedProcessCapsule,
+  sealSessionProcessCapsule,
+} from "../lib/browser-seal";
 import {
   browserSessionStore,
   buildDossierStatusSnapshotAttachment,
@@ -455,10 +460,28 @@ export function SessionDashboard() {
       anchor.click();
       URL.revokeObjectURL(url);
       setStatusNote(
-        `Exported process claims JSON for ${selected.sessionId} · verify path helper · seal via MCP runbook_session_seal_capsule (browser has no capsule-author)`,
+        `Exported process claims JSON for ${selected.sessionId} · verify path helper · seal in-browser or via MCP runbook_session_seal_capsule`,
       );
     } catch (error) {
       setStatusNote(error instanceof Error ? error.message : "Claims export failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [selected]);
+
+  const sealProcessCapsule = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      // Re-read so seal reflects latest localStorage state.
+      const live = browserSessionStore.read(selected.sessionId);
+      const sealed = await sealSessionProcessCapsule(live);
+      downloadSealedProcessCapsule(sealed);
+      setStatusNote(
+        `Sealed process capsule · capsuleId=${sealed.capsuleId.slice(0, 16)}… · sha256=${sealed.archiveSha256.slice(0, 12)}… · synthetic self-asserted key · not identity · not broker-issued · process evidence only`,
+      );
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Process capsule seal failed.");
     } finally {
       setBusy(false);
     }
@@ -475,6 +498,7 @@ export function SessionDashboard() {
         <nav className={styles.headerNav} aria-label="Session navigation">
           <Link href="/">Product map</Link>
           <Link href="/theater">Theater</Link>
+          <Link href="/gateway">Gateway</Link>
           <Link href="/shadow-lab">Shadow Lab</Link>
           <Link href="/control-room">Control Room</Link>
           <Link href="/verify">Verify</Link>
@@ -750,6 +774,16 @@ export function SessionDashboard() {
                   </button>
                   <button
                     type="button"
+                    className={styles.primaryBtn}
+                    onClick={() => void sealProcessCapsule()}
+                    disabled={busy}
+                    aria-label="Seal process capsule (.runbook)"
+                  >
+                    <PackageCheck size={14} aria-hidden="true" />
+                    Seal process capsule (.runbook)
+                  </button>
+                  <button
+                    type="button"
                     className={styles.ghostBtn}
                     onClick={() => void recordDemoShadow()}
                     disabled={busy}
@@ -759,10 +793,12 @@ export function SessionDashboard() {
                   </button>
                 </div>
                 <p className={styles.sealNote} aria-label="Seal capsule note">
-                  Browser cannot seal a signed Proof Capsule (needs capsule-author + key material).
-                  Export process claims JSON for the verify path, or seal via MCP{" "}
-                  <code>runbook_session_seal_capsule</code>. Process claims only — not returns, not
-                  certification.
+                  <strong>Seal process capsule (.runbook)</strong> builds a synthetic Proof Capsule
+                  in-browser with an ephemeral self-asserted Ed25519 key (Web Crypto +{" "}
+                  <code>@runbook/capsule-author</code>). Integrity only — not identity, not
+                  broker-issued, not returns, not certification. MCP{" "}
+                  <code>runbook_session_seal_capsule</code> remains available for CLI/host sealing.
+                  Verify downloads at <Link href="/verify">/verify</Link>.
                 </p>
               </div>
 

@@ -331,6 +331,18 @@
   color: #c5d4e3;
 }
 
+.surfaceLockNote {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.surfaceLockNote strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .links {
   display: flex;
   flex-wrap: wrap;

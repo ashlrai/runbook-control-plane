@@ -6,6 +6,7 @@ const PATHS = [
   "/",
   "/showcase",
   "/theater",
+  "/gateway",
   "/session",
   "/shadow-lab",
   "/control-room",

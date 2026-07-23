@@ -59,7 +59,7 @@ describe("elite wave MCP tools", () => {
     await rm(harness.directory, { recursive: true, force: true });
   });
 
-  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.2", async () => {
+  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.3", async () => {
     const result = await harness.client.callTool({
       name: "runbook_surface_lock_receipt",
       arguments: {},
@@ -69,7 +69,7 @@ describe("elite wave MCP tools", () => {
     expect(body).toMatchObject({
       schemaVersion: "runbook.surface-lock-receipt.v1",
       serverName: "runbook",
-      serverVersion: "0.4.2",
+      serverVersion: "0.4.3",
       toolCount: TOOL_NAMES.length,
       hasPlaceOrCancelTools: false,
       openWorldHint: false,
@@ -78,7 +78,71 @@ describe("elite wave MCP tools", () => {
     });
     expect(body.brokerExecutionTools).toEqual([]);
     expect(String(body.toolSetSha256)).toHaveLength(64);
-    expect(TOOL_NAMES.length).toBe(40);
+    expect(TOOL_NAMES.length).toBe(42);
+    expect(TOOL_NAMES).toContain("runbook_session_attach_surface_lock");
+    expect(TOOL_NAMES).toContain("runbook_gateway_quorum_demo");
+  });
+
+  it("attach_surface_lock attaches operator-note with toolSetSha256 evidenceRef", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-ATTACH-LOCK-001",
+        label: "Attach surface lock test",
+      },
+    });
+
+    const lock = await harness.client.callTool({
+      name: "runbook_surface_lock_receipt",
+      arguments: {},
+    });
+    expect(lock.isError).not.toBe(true);
+    const lockBody = structured(lock);
+    const toolSetSha256 = String(lockBody.toolSetSha256);
+
+    const attached = await harness.client.callTool({
+      name: "runbook_session_attach_surface_lock",
+      arguments: { sessionId: "CPS-ATTACH-LOCK-001" },
+    });
+    expect(attached.isError).not.toBe(true);
+    const body = structured(attached);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.session-attach-surface-lock.v1",
+      sessionId: "CPS-ATTACH-LOCK-001",
+      toolCount: TOOL_NAMES.length,
+      serverVersion: "0.4.3",
+      toolSetSha256,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    expect(Number(body.attachmentCount)).toBeGreaterThanOrEqual(1);
+    expect(typeof body.attachmentId).toBe("string");
+    expect(String(body.message).length).toBeGreaterThan(8);
+
+    const got = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-ATTACH-LOCK-001" },
+    });
+    expect(got.isError).not.toBe(true);
+    const session = structured(got).session as {
+      dossierAttachments?: Array<{
+        kind: string;
+        summary: string;
+        evidenceRef?: string;
+        attachmentId: string;
+      }>;
+      notes?: string[];
+    };
+    const attachments = session.dossierAttachments ?? [];
+    const note = attachments.find((a) => a.attachmentId === body.attachmentId);
+    expect(note).toBeDefined();
+    expect(note?.kind).toBe("operator-note");
+    expect(note?.evidenceRef).toBe(toolSetSha256);
+    expect(note?.summary).toContain(`toolCount=${TOOL_NAMES.length}`);
+    expect(note?.summary).toContain("version=0.4.3");
+    expect(note?.summary).toContain(toolSetSha256);
+    expect(session.notes?.some((n) => n.includes("attach_surface_lock"))).toBe(true);
   });
 
   it("process_tick stop on unknown tool with fail-closed pin", async () => {
@@ -280,6 +344,51 @@ describe("elite wave MCP tools", () => {
     });
     expect(Number(body.disagreementCount)).toBeGreaterThanOrEqual(1);
     expect(String(body.sessionCharterBinding)).toMatch(/mismatch|denied/);
+  });
+
+  it("gateway_quorum_demo runs authorize/deny/replay with honesty flags", async () => {
+    const result = await harness.client.callTool({
+      name: "runbook_gateway_quorum_demo",
+      arguments: {},
+    });
+    expect(result.isError).not.toBe(true);
+    const body = structured(result);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.gateway-quorum-demo.v1",
+      actionType: "policy.activate",
+      humanAuthorityEstablished: false,
+      authorizationEstablished: false,
+      brokerEffect: false,
+      notBrokerOrderSubmission: true,
+      localPolicyTheaterOnly: true,
+    });
+    const scenarios = body.scenarios as Array<{
+      id: string;
+      decision: string;
+      authorizationConditionsSatisfied: boolean;
+      checks: Array<{ code: string; passed: boolean }>;
+    }>;
+    expect(scenarios).toHaveLength(3);
+    expect(scenarios.map((s) => s.id)).toEqual(["authorize", "deny", "replay"]);
+    expect(scenarios.find((s) => s.id === "authorize")).toMatchObject({
+      decision: "authorize",
+      authorizationConditionsSatisfied: true,
+    });
+    expect(scenarios.find((s) => s.id === "deny")).toMatchObject({
+      decision: "deny",
+      authorizationConditionsSatisfied: false,
+    });
+    expect(scenarios.find((s) => s.id === "replay")).toMatchObject({
+      decision: "replay",
+      authorizationConditionsSatisfied: false,
+    });
+    for (const scenario of scenarios) {
+      expect(scenario.checks.length).toBeGreaterThan(0);
+      expect(scenario.checks.every((c) => typeof c.code === "string" && typeof c.passed === "boolean")).toBe(
+        true,
+      );
+    }
+    expect(String(body.note)).toMatch(/theater|policy/i);
   });
 });
 

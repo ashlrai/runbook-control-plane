@@ -1,10 +1,13 @@
 /**
- * Elite wave demo story: control-plane spine + surface lock + process tick + seal.
+ * Elite wave demo story: control-plane spine + surface lock + process tick +
+ * dual_check_diff + clone-challenge + seal.
  *
  * Extends control-plane-story success with:
  * 1. buildSurfaceLockReceipt
  * 2. process_tick-style inventory check with an unknown tool (expect stop)
- * 3. seal process capsule (synthetic)
+ * 3. dual_check_diff: weak ledger vs elite session on option SPY (expect deny)
+ * 4. clone-challenge: equities-only or deny-gme child session fork
+ * 5. seal process capsule (synthetic)
  *
  * Process evidence only — brokerEffect false, capital 0, not trading performance.
  */
@@ -12,13 +15,17 @@
 import { webcrypto } from "node:crypto";
 import { rm } from "node:fs/promises";
 import {
+  applyChallengeMutation,
+  buildDualCheckDiff,
   buildProcessCapsulePayloads,
   checkObservedToolsAgainstPin,
   processCapsuleExperimentId,
   resolveProcessTick,
   SessionStore,
   defaultSessionRoot,
+  type ChallengeMutationId,
 } from "@runbook/session";
+import { WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import {
   finalizeProofCapsule,
   prepareProofCapsule,
@@ -46,6 +53,15 @@ export type EliteWaveStoryReceipt = {
     recommendation: "proceed" | "warn" | "stop";
     inventoryOk: boolean;
     inventoryUnknownTools: string[];
+  };
+  dualCheck?: {
+    disagreementCount: number;
+    processDeniedBySession: boolean;
+    sessionCharterBinding: string;
+  };
+  clone?: {
+    childSessionId: string;
+    mutationId: ChallengeMutationId;
   };
   seal: {
     capsuleId: string;
@@ -78,11 +94,34 @@ const SUCCESS_BANNER = [
   "",
   "╔══════════════════════════════════════════════════════════════╗",
   "║  SUCCESS — elite-wave story complete                         ║",
-  "║  control-plane + surface lock + process_tick stop + seal      ║",
+  "║  control-plane + lock + tick stop + dual_check + clone + seal ║",
   "║  process evidence only · brokerEffect false · capital 0       ║",
   "╚══════════════════════════════════════════════════════════════╝",
   "",
 ].join("\n");
+
+const OPTION_SPY_PROPOSAL = {
+  proposalId: "elite-wave-opt-spy",
+  experimentId: "RUN-ELITE-WAVE-DUAL",
+  symbol: "SPY",
+  instrument: "option" as const,
+  side: "buy" as const,
+  notional: 50,
+  projectedPositionNotional: 50,
+  dailyTradesAfter: 1,
+  currentDrawdownPercent: 0.5,
+  hasThesis: true,
+  hasInvalidation: true,
+  evidenceSourceCount: 1,
+};
+
+function pickCloneMutation(allowedInstruments: readonly string[]): ChallengeMutationId {
+  // Prefer equities-only when options/crypto remain; otherwise deny-gme (idempotent).
+  if (allowedInstruments.some((i) => i !== "equity")) {
+    return "equities-only";
+  }
+  return "deny-gme";
+}
 
 export async function runEliteWaveStory(
   options: EliteWaveStoryOptions = {},
@@ -179,7 +218,58 @@ export async function runEliteWaveStory(
       errors.push("process-tick-claims-violation");
     }
 
-    // 3. Optional seal capsule
+    // 3. dual_check_diff: weak ledger vs elite session charter on option SPY (fail-closed)
+    if (session.charter === undefined) {
+      errors.push("dual-check-session-charter-missing");
+    } else {
+      const dual = buildDualCheckDiff({
+        ledgerPolicy: WEAK_STARTER_POLICY,
+        sessionPolicy: session.charter,
+        proposal: { ...OPTION_SPY_PROPOSAL, experimentId },
+        enforcement: "fail-closed",
+      });
+      receipt.dualCheck = {
+        disagreementCount: dual.disagreementCount,
+        processDeniedBySession: dual.processDeniedBySession,
+        sessionCharterBinding: dual.sessionCharterBinding,
+      };
+      if (dual.disagreementCount < 1) {
+        errors.push("dual-check-expected-disagreement");
+      }
+      if (!dual.processDeniedBySession) {
+        errors.push("dual-check-expected-process-denied-by-session");
+      }
+      if (dual.brokerEffect !== false || dual.compositeScore !== false) {
+        errors.push("dual-check-claims-violation");
+      }
+    }
+
+    // 4. Clone-challenge: one-rule process fork into a child session
+    if (session.charter === undefined) {
+      errors.push("clone-challenge-session-charter-missing");
+    } else {
+      const mutationId = pickCloneMutation(session.charter.allowedInstruments);
+      const childCharter = applyChallengeMutation(session.charter, mutationId);
+      const child = await store.create({
+        label: `Elite-wave challenge ${mutationId} ← ${sessionId}`.slice(0, 200),
+        charter: childCharter,
+        ...(session.inventoryPin !== undefined ? { inventoryPin: session.inventoryPin } : {}),
+        inventoryEnforcement: session.inventoryEnforcement,
+        charterBindingEnforcement: session.charterBindingEnforcement,
+      });
+      receipt.clone = {
+        childSessionId: child.sessionId,
+        mutationId,
+      };
+      if (!child.sessionId || child.sessionId === sessionId) {
+        errors.push("clone-challenge-child-id-invalid");
+      }
+      if (child.charter === undefined) {
+        errors.push("clone-challenge-child-charter-missing");
+      }
+    }
+
+    // 5. Optional seal capsule
     if (!skipSeal) {
       const pack = await store.exportPack(sessionId);
       const drafts = buildProcessCapsulePayloads(pack);

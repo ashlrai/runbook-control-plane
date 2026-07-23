@@ -33,6 +33,7 @@ describe("Session dashboard", () => {
     expect(hrefs).toContain("/control-room");
     expect(hrefs).toContain("/dossier");
     expect(hrefs).toContain("/mcp");
+    expect(hrefs).toContain("/gateway");
 
     const text = document.body.textContent ?? "";
     expect(text).not.toMatch(/100\/100|agent certified|buyer-ready certified|safety score:/i);
@@ -263,7 +264,7 @@ describe("Session dashboard", () => {
     });
   });
 
-  it("imports a session evidence pack JSON and notes seal-via-MCP path", async () => {
+  it("imports a session evidence pack JSON and offers browser seal button", async () => {
     const createObjectURL = vi.fn((_blob: Blob) => "blob:claims");
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", {
@@ -292,9 +293,15 @@ describe("Session dashboard", () => {
       expect(screen.getByRole("option", { name: /Pack seed/i })).toBeTruthy();
     });
 
+    expect(
+      screen.getByRole("button", { name: /Seal process capsule \(\.runbook\)/i }),
+    ).toBeTruthy();
+
     const seal = screen.getByLabelText("Seal capsule note").textContent ?? "";
-    expect(seal).toMatch(/runbook_session_seal_capsule/i);
+    expect(seal).toMatch(/self-asserted|ephemeral/i);
+    expect(seal).toMatch(/not identity|not broker-issued/i);
     expect(seal).toMatch(/not returns|not certification/i);
+    expect(seal).toMatch(/runbook_session_seal_capsule/i);
 
     fireEvent.click(screen.getByRole("button", { name: /Export process claims JSON/i }));
     await waitFor(() => {
@@ -316,5 +323,27 @@ describe("Session dashboard", () => {
     expect(claims.compositeScore).toBe(false);
 
     clickSpy.mockRestore();
+  });
+
+  it("exposes Seal process capsule button on a live session", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Seal button surface" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Seal button surface/i })).toBeTruthy();
+    });
+
+    const sealBtn = screen.getByRole("button", { name: /Seal process capsule \(\.runbook\)/i });
+    expect(sealBtn).toBeTruthy();
+    expect((sealBtn as HTMLButtonElement).disabled).toBe(false);
+
+    const note = screen.getByLabelText("Seal capsule note").textContent ?? "";
+    expect(note).toMatch(/synthetic|self-asserted/i);
+    expect(note).toMatch(/not identity/i);
+    expect(note).toMatch(/not broker-issued/i);
   });
 });

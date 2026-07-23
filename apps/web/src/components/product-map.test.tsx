@@ -43,6 +43,7 @@ describe("Product map landing", () => {
 
     expect(hrefs).toContain("/showcase");
     expect(hrefs).toContain("/theater");
+    expect(hrefs).toContain("/gateway");
     expect(hrefs).toContain("/session");
     expect(hrefs).toContain("/registry");
     expect(hrefs).toContain("/control-room");
@@ -55,6 +56,7 @@ describe("Product map landing", () => {
     expect(text).toContain("Historical commercial hypothesis");
     expect(text).toMatch(/Control Plane Session/i);
     expect(text).toMatch(/Process Theater/i);
+    expect(text).toMatch(/Gateway quorum theater/i);
     expect(text).toMatch(/Control Room/i);
     expect(text).toMatch(/Shadow Process Lab/i);
     expect(text).toMatch(/Dossier status/i);

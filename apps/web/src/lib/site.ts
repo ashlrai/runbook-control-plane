@@ -16,12 +16,17 @@ export const SITE_TAGLINE =
 export const SITE_DESCRIPTION =
   "Broker-neutral process lab: control-plane sessions, shadow charter refine, inventory fail-closed checks, portable proof capsules, and advisory preflight. No live capital, no broker credentials, no composite safety score." as const;
 
+/** Closed MCP surface — mirror packages/mcp/src/surface.ts (static product display). */
+export const SITE_MCP_VERSION = "0.4.3" as const;
+export const SITE_TOOL_COUNT = 42 as const;
+
 /** Truth-rail chips for product surfaces (order stable for tests). */
 export const HOSTED_TRUTH_RAIL = [
   "NO LIVE CAPITAL",
   "NO BROKER CREDENTIALS",
   "NO COMPOSITE SAFETY SCORE",
   "HOSTED LAB · BROWSER-LOCAL STATE",
+  `runbook.ashlr.ai · MCP ${SITE_MCP_VERSION} · ${SITE_TOOL_COUNT} tools`,
 ] as const;
 
 export const LOCAL_TRUTH_RAIL = [

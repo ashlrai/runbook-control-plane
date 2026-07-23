@@ -24,8 +24,10 @@ import {
 import {
   GITHUB_PUBLIC,
   HOSTED_TRUTH_RAIL,
+  SITE_MCP_VERSION,
   SITE_ORIGIN,
   SITE_TAGLINE,
+  SITE_TOOL_COUNT,
 } from "../lib/site";
 import styles from "./hosted-showcase.module.css";
 
@@ -198,6 +200,8 @@ export function HostedShowcase() {
         origin: SITE_ORIGIN,
         sessionId: session.sessionId,
         success: errors.length === 0,
+        surfaceVersion: SITE_MCP_VERSION,
+        toolCount: SITE_TOOL_COUNT,
         errors,
         inventoryUnknown: check.unknownTools,
         hardFalseAllows: refine.finalHardFalseAllows,
@@ -365,6 +369,12 @@ export function HostedShowcase() {
             <pre className={styles.receipt} aria-label="Showcase receipt JSON">
               {receipt}
             </pre>
+            {sessionId && !busy && receipt.includes('"success": true') ? (
+              <p className={styles.surfaceLockNote} aria-label="Surface version after success">
+                Closed MCP surface <strong>v{SITE_MCP_VERSION}</strong> · {SITE_TOOL_COUNT} tools ·
+                process claims export on Session.
+              </p>
+            ) : null}
             <div className={styles.links} aria-label="Continue after showcase">
               {sessionId ? (
                 <Link
@@ -378,6 +388,14 @@ export function HostedShowcase() {
                   Session spine
                 </Link>
               )}
+              {sessionId ? (
+                <Link
+                  className={styles.chipLink}
+                  href={`/session?sessionId=${encodeURIComponent(sessionId)}`}
+                >
+                  Download process claims
+                </Link>
+              ) : null}
               <Link className={styles.chipLink} href="/verify">
                 Capsule verifier
               </Link>
@@ -400,7 +418,7 @@ export function HostedShowcase() {
                 Shadow Lab
               </Link>
               <Link className={styles.chipLink} href="/mcp">
-                MCP cockpit (40 tools)
+                MCP cockpit ({SITE_TOOL_COUNT} tools · v{SITE_MCP_VERSION})
               </Link>
             </div>
           </div>

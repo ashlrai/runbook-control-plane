@@ -3,7 +3,7 @@ import { runEliteWaveStory } from "./elite-wave-story.js";
 import { TOOL_NAMES } from "./surface.js";
 
 describe("elite-wave-story", () => {
-  it("runs control-plane + surface lock + process_tick stop + seal to SUCCESS", async () => {
+  it("runs control-plane + surface lock + process_tick stop + dual_check + clone + seal to SUCCESS", async () => {
     const result = await runEliteWaveStory({ keepTempDir: false });
     expect(result.exitCode).toBe(0);
     expect(result.receipt.success).toBe(true);
@@ -12,12 +12,23 @@ describe("elite-wave-story", () => {
     expect(result.receipt.controlPlaneSuccess).toBe(true);
     expect(result.receipt.toolCount).toBe(TOOL_NAMES.length);
     expect(result.receipt.surfaceLock.toolCount).toBe(TOOL_NAMES.length);
-    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.2");
+    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.3");
     expect(result.receipt.surfaceLock.hasPlaceOrCancelTools).toBe(false);
     expect(result.receipt.surfaceLock.toolSetSha256).toHaveLength(64);
     expect(result.receipt.processTick.recommendation).toBe("stop");
     expect(result.receipt.processTick.inventoryOk).toBe(false);
     expect(result.receipt.processTick.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+
+    expect(result.receipt.dualCheck).toBeDefined();
+    expect(result.receipt.dualCheck!.disagreementCount).toBeGreaterThanOrEqual(1);
+    expect(result.receipt.dualCheck!.processDeniedBySession).toBe(true);
+    expect(result.receipt.dualCheck!.sessionCharterBinding.length).toBeGreaterThan(0);
+
+    expect(result.receipt.clone).toBeDefined();
+    expect(result.receipt.clone!.childSessionId.length).toBeGreaterThan(4);
+    expect(result.receipt.clone!.childSessionId).not.toBe(result.receipt.sessionId);
+    expect(["equities-only", "deny-gme"]).toContain(result.receipt.clone!.mutationId);
+
     expect(result.receipt.seal).not.toBeNull();
     expect(result.receipt.seal?.capsuleId.length).toBeGreaterThan(8);
     expect(result.receipt.seal?.archiveSha256).toHaveLength(64);
@@ -25,5 +36,7 @@ describe("elite-wave-story", () => {
     expect(result.receipt.compositeScore).toBe(false);
     expect(result.receipt.capitalAtRisk).toBe(0);
     expect(result.banner).toMatch(/SUCCESS/);
+    expect(result.banner).toMatch(/dual_check/);
+    expect(result.banner).toMatch(/clone/);
   }, 60_000);
 });
