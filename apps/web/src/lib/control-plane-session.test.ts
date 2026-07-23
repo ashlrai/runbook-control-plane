@@ -178,6 +178,55 @@ describe("control-plane-session browser adapter", () => {
     expect(warned.sessionCharterBinding).toBe("mismatch-session-denies");
   });
 
+  it("creates with empty processTicks, recordProcessTick, and demoProcessTick stop on unknown", async () => {
+    const store = new BrowserSessionStore();
+    const session = await store.create({
+      sessionId: "CPS-TICK-001",
+      label: "Process tick unit",
+      charterSeed: "elite",
+      charterBindingEnforcement: "fail-closed",
+    });
+    expect(session.processTicks).toEqual([]);
+    expect(controlPlaneSessionSchema.parse(session).processTicks).toEqual([]);
+
+    const pin = await buildPublicDocsInventoryPin({
+      createdAt: "2026-07-23T00:00:00.000Z",
+      pinId: "pin-tick-1",
+    });
+    await store.setInventoryPin("CPS-TICK-001", pin);
+
+    await store.recordProcessTick("CPS-TICK-001", {
+      recommendation: "warn",
+      inventoryOk: true,
+      inventoryUnknownTools: [],
+      sessionCharterBinding: "aligned",
+      processDeniedBySession: false,
+      observedToolCount: 3,
+      message: "manual tick note",
+      recordedAt: "2026-07-23T00:03:00.000Z",
+    });
+    expect(store.read("CPS-TICK-001").processTicks).toHaveLength(1);
+    expect(store.read("CPS-TICK-001").processTicks[0]?.recommendation).toBe("warn");
+
+    const tick = await store.demoProcessTick("CPS-TICK-001");
+    expect(tick.schemaVersion).toBe("runbook.process-tick.v1");
+    expect(tick.recommendation).toBe("stop");
+    expect(tick.inventoryOk).toBe(false);
+    expect(tick.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+    expect(tick.processDeniedBySession).toBe(true);
+    expect(tick.brokerEffect).toBe(false);
+    expect(tick.compositeScore).toBe(false);
+    expect(tick.capitalAtRisk).toBe(0);
+    expect(tick.sessionId).toBe("CPS-TICK-001");
+    expect(tick.observedToolCount).toBe(SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN.length);
+
+    const ticks = store.read("CPS-TICK-001").processTicks;
+    expect(ticks).toHaveLength(2);
+    expect(ticks[1]?.recommendation).toBe("stop");
+    expect(ticks[1]?.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+    expect(ticks[1]?.message).toMatch(/Inventory fail-closed|process-layer/i);
+  });
+
   it("buildInventoryPinPreset filters effect classes and pinPresetToSession hands off", async () => {
     const full = await buildInventoryPinPreset("public-docs-full");
     expect(full.tools).toHaveLength(50);

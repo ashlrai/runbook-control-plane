@@ -324,6 +324,22 @@ export function SessionDashboard() {
     }
   }, [selected]);
 
+  const runSampleSupervisorTick = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const tick = await browserSessionStore.demoProcessTick(selected.sessionId);
+      setStatusNote(
+        `Process tick · recommendation=${tick.recommendation} · inventoryOk=${String(tick.inventoryOk)} · binding=${tick.sessionCharterBinding} · process-layer only · not a hard broker gateway`,
+      );
+      refresh();
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Sample supervisor tick failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [selected, refresh]);
+
   const runCloneChallenge = useCallback(
     async (mutationId: ChallengeMutationId) => {
       if (!selected?.charter) return;
@@ -718,6 +734,11 @@ export function SessionDashboard() {
                     <strong>{selected.charterBindingEnforcement ?? "warn"}</strong>
                     <em>dual-eval · not broker gateway</em>
                   </div>
+                  <div className={styles.metric} aria-label="Process ticks count">
+                    <span>Process ticks</span>
+                    <strong>{(selected.processTicks ?? []).length}</strong>
+                    <em>supervisor history · process-layer only</em>
+                  </div>
                 </div>
                 <div className={styles.actions}>
                   <button
@@ -800,6 +821,75 @@ export function SessionDashboard() {
                   <code>runbook_session_seal_capsule</code> remains available for CLI/host sealing.
                   Verify downloads at <Link href="/verify">/verify</Link>.
                 </p>
+              </div>
+
+              <div className={styles.panel} aria-label="Process ticks">
+                <div className={styles.panelHead}>
+                  <div>
+                    <p className={styles.eyebrow}>Supervisor heartbeat · process-layer only</p>
+                    <h2>Process ticks</h2>
+                  </div>
+                  <span className={styles.mono} style={{ padding: "6px 8px" }}>
+                    {(selected.processTicks ?? []).length} tick(s)
+                  </span>
+                </div>
+                <div className={styles.sectionBody}>
+                  <p>
+                    Inventory check + dual-eval option probe composed into proceed | warn | stop.
+                    Host may still bypass Runbook. Not a hard broker gateway. Not trading
+                    performance. No composite safety score.
+                  </p>
+                  <div className={styles.actions} style={{ padding: 0 }}>
+                    <button
+                      type="button"
+                      className={styles.primaryBtn}
+                      onClick={() => void runSampleSupervisorTick()}
+                      disabled={busy}
+                      aria-label="Run sample supervisor tick"
+                    >
+                      <Radio size={14} aria-hidden="true" />
+                      Run sample supervisor tick
+                    </button>
+                  </div>
+                  {(selected.processTicks ?? []).length === 0 ? (
+                    <p className={styles.empty} style={{ padding: 0 }}>
+                      No process ticks yet. Pin inventory (optional) then run a sample supervisor
+                      tick to record inventory + dual-eval history.
+                    </p>
+                  ) : (
+                    <div
+                      className={styles.tickList}
+                      role="list"
+                      aria-label="Process ticks history"
+                    >
+                      {[...(selected.processTicks ?? [])].reverse().map((tick) => (
+                        <div
+                          key={`${tick.recordedAt}-${tick.recommendation}-${tick.message.slice(0, 24)}`}
+                          className={styles.tickRow}
+                          role="listitem"
+                          data-recommendation={tick.recommendation}
+                        >
+                          <strong data-recommendation={tick.recommendation}>
+                            {tick.recommendation}
+                          </strong>
+                          <span>
+                            inventoryOk={String(tick.inventoryOk)}
+                            {tick.inventoryUnknownTools.length > 0
+                              ? ` · unknown: ${tick.inventoryUnknownTools.join(", ")}`
+                              : ""}
+                          </span>
+                          <span>
+                            binding={tick.sessionCharterBinding} · processDeniedBySession=
+                            {String(tick.processDeniedBySession)} · tools=
+                            {tick.observedToolCount}
+                          </span>
+                          <code>{tick.recordedAt}</code>
+                          <em>{tick.message}</em>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className={styles.panel}>

@@ -162,7 +162,7 @@ export function McpCockpit() {
             Install the local Runbook MCP next to your coding agent. Server{" "}
             <strong>v{MCP_SERVER_VERSION}</strong> · {MCP_TOOL_COUNT} closed tools: discovery, six
             ledger writers/readers, seven offline analysis tools, six shadow self-improvement tools,
-            thirteen control-plane session tools, and six elite process tools. Preflight is
+            thirteen control-plane session tools, and eleven elite process tools. Preflight is
             deterministic and advisory. A direct brokerage tool can always bypass Runbook—so the
             first pilot stays disconnected.
           </p>

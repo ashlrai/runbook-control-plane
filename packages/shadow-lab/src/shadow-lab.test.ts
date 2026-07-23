@@ -16,8 +16,10 @@ import {
   dominates,
   evaluateCharter,
   evaluateCharterAgainstMergedCurriculum,
+  evaluateOperatorAugmentedCurriculum,
   extractCurriculumCandidatesFromEvents,
   mergeCurriculum,
+  normalizeOperatorScenario,
   proposalFingerprint,
   proposeRefinement,
   runRecursiveImprovement,
@@ -595,5 +597,90 @@ describe("meta-curriculum extract / merge / dedupe", () => {
     expect(report.note).toMatch(/ledger-derived/);
     expect(report.note).toMatch(/not market truth/i);
     expect(report.metrics.hardFalseAllows).toBe(0);
+  });
+});
+
+describe("operator-scenario", () => {
+  it("evaluateOperatorAugmentedCurriculum with option-should-deny keeps hardFalseAllows 0 on elite", () => {
+    const result = evaluateOperatorAugmentedCurriculum(REFERENCE_ELITE_POLICY, [
+      {
+        id: "option-should-deny",
+        label: "Operator option should deny",
+        shouldAllow: false,
+        tags: ["options-blocked"],
+        proposal: {
+          proposalId: "op-opt-deny",
+          experimentId: "CURRICULUM",
+          symbol: "SPY",
+          instrument: "option",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 1,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 2,
+        },
+      },
+    ]);
+
+    expect(result.schemaVersion).toBe("runbook.operator-scenario-eval.v1");
+    expect(result.operatorScenarioCount).toBe(1);
+    expect(result.closedCurriculumCount).toBe(SHADOW_CURRICULUM.length);
+    expect(result.scenarioCount).toBe(SHADOW_CURRICULUM.length + 1);
+    expect(result.hardFalseAllows).toBe(0);
+    expect(result.brokerEffect).toBe(false);
+    expect(result.compositeScore).toBe(false);
+    expect(result.notTradingPerformance).toBe(true);
+    expect(result.report.scenarios.some((s) => s.id === "operator.option-should-deny")).toBe(true);
+  });
+
+  it("normalizeOperatorScenario rejects invalid id", () => {
+    expect(() =>
+      normalizeOperatorScenario({
+        id: "bad id!",
+        label: "invalid",
+        shouldAllow: false,
+        proposal: {
+          proposalId: "op-bad",
+          experimentId: "CURRICULUM",
+          symbol: "SPY",
+          instrument: "option",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 1,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 1,
+        },
+      }),
+    ).toThrow("operator-scenario-id-invalid");
+
+    expect(() =>
+      evaluateOperatorAugmentedCurriculum(REFERENCE_ELITE_POLICY, [
+        {
+          id: "",
+          label: "empty id",
+          shouldAllow: false,
+          proposal: {
+            proposalId: "op-empty",
+            experimentId: "CURRICULUM",
+            symbol: "VTI",
+            instrument: "equity",
+            side: "buy",
+            notional: 50,
+            projectedPositionNotional: 50,
+            dailyTradesAfter: 1,
+            currentDrawdownPercent: 1,
+            hasThesis: true,
+            hasInvalidation: true,
+            evidenceSourceCount: 1,
+          },
+        },
+      ]),
+    ).toThrow("operator-scenario-id-invalid");
   });
 });

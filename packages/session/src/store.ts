@@ -8,6 +8,7 @@ import {
   type ControlPlaneSession,
   type DossierAttachment,
   type InventoryPin,
+  type ProcessTickSummary,
   type SessionEvidencePack,
 } from "./types.js";
 
@@ -65,6 +66,7 @@ export class SessionStore {
       inventoryEnforcement: input.inventoryEnforcement ?? "fail-closed",
       charterBindingEnforcement: input.charterBindingEnforcement ?? "warn",
       shadowGenerations: [],
+      processTicks: [],
       dossierAttachments: [],
       notes: [],
       limitations: [
@@ -193,6 +195,28 @@ export class SessionStore {
       ...s,
       experimentId,
       ...(ledgerHeadHash ? { ledgerHeadHash } : {}),
+    }));
+  }
+
+  async recordProcessTick(
+    sessionId: string,
+    tick: Omit<ProcessTickSummary, "recordedAt"> & { recordedAt?: string },
+  ): Promise<ControlPlaneSession> {
+    return this.update(sessionId, (s) => ({
+      ...s,
+      processTicks: [
+        ...(s.processTicks ?? []),
+        {
+          recordedAt: tick.recordedAt ?? new Date().toISOString(),
+          recommendation: tick.recommendation,
+          inventoryOk: tick.inventoryOk,
+          inventoryUnknownTools: tick.inventoryUnknownTools.slice(0, 32),
+          sessionCharterBinding: tick.sessionCharterBinding.slice(0, 80),
+          processDeniedBySession: tick.processDeniedBySession,
+          observedToolCount: tick.observedToolCount,
+          message: tick.message.slice(0, 500),
+        },
+      ].slice(-64),
     }));
   }
 

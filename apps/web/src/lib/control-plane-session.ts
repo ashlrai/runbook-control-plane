@@ -18,6 +18,7 @@ import type {
   InventoryCheckResult,
   InventoryPin,
   InventoryToolEntry,
+  ProcessTickSummary,
   SessionEvidencePack,
 } from "@runbook/session";
 /** Pure dual-eval — subpath avoids node:fs from SessionStore in browser bundles. */
@@ -26,6 +27,11 @@ import {
   type CharterBindingEnforcement,
   type CharterDualEvalResult,
 } from "@runbook/session/charter-binding";
+/** Pure process tick — subpath avoids node:fs from SessionStore in browser bundles. */
+import {
+  resolveProcessTick,
+  type ProcessTickResult,
+} from "@runbook/session/process-tick";
 import { REFERENCE_ELITE_POLICY, WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import { DOSSIER_COUNTS, PROCESS_BRIDGED_IDS } from "./dossier-status-data";
 import {
@@ -522,13 +528,14 @@ function isSessionLike(value: unknown): value is ControlPlaneSession {
   );
 }
 
-/** Normalize older localStorage sessions that predate charterBindingEnforcement. */
+/** Normalize older localStorage sessions that predate charterBindingEnforcement / processTicks. */
 function normalizeSession(session: ControlPlaneSession): ControlPlaneSession {
   return {
     ...session,
     inventoryEnforcement: session.inventoryEnforcement ?? "fail-closed",
     charterBindingEnforcement: session.charterBindingEnforcement ?? "warn",
     shadowGenerations: session.shadowGenerations ?? [],
+    processTicks: session.processTicks ?? [],
     dossierAttachments: session.dossierAttachments ?? [],
     notes: session.notes ?? [],
     limitations: session.limitations ?? [...SESSION_LIMITATIONS],
@@ -610,6 +617,7 @@ export class BrowserSessionStore {
       inventoryEnforcement: input.inventoryEnforcement ?? "fail-closed",
       charterBindingEnforcement: input.charterBindingEnforcement ?? "warn",
       shadowGenerations: [],
+      processTicks: [],
       dossierAttachments: [],
       notes: [],
       limitations: [...SESSION_LIMITATIONS],
@@ -730,6 +738,68 @@ export class BrowserSessionStore {
         },
       ].slice(-32),
     }));
+  }
+
+  /**
+   * Append a process-tick summary (ring buffer, last 64). Process-layer only —
+   * not a hard broker gateway.
+   */
+  async recordProcessTick(
+    sessionId: string,
+    tick: Omit<ProcessTickSummary, "recordedAt"> & { recordedAt?: string },
+  ): Promise<ControlPlaneSession> {
+    return this.update(sessionId, (s) => ({
+      ...s,
+      processTicks: [
+        ...(s.processTicks ?? []),
+        {
+          recordedAt: tick.recordedAt ?? new Date().toISOString(),
+          recommendation: tick.recommendation,
+          inventoryOk: tick.inventoryOk,
+          inventoryUnknownTools: tick.inventoryUnknownTools.slice(0, 32),
+          sessionCharterBinding: tick.sessionCharterBinding.slice(0, 80),
+          processDeniedBySession: tick.processDeniedBySession,
+          observedToolCount: tick.observedToolCount,
+          message: tick.message.slice(0, 500),
+        },
+      ].slice(-64),
+    }));
+  }
+
+  /**
+   * Sample supervisor tick: inventory check (unknown tool) + dual-eval option
+   * probe → resolveProcessTick → recordProcessTick. Process-layer only.
+   */
+  async demoProcessTick(sessionId: string): Promise<
+    ProcessTickResult & {
+      sessionId: string;
+      observedToolCount: number;
+    }
+  > {
+    const session = this.read(sessionId);
+    const observed = [...SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN];
+    const inventory = await checkObservedToolsAgainstPin(
+      session.inventoryPin,
+      observed,
+      session.inventoryEnforcement ?? "fail-closed",
+    );
+    // Dual-eval option probe (same proposal as dashboard dual-eval demo).
+    const dual = demoCharterDualEval(session);
+    const tick = resolveProcessTick({ inventory, dualEval: dual });
+    await this.recordProcessTick(sessionId, {
+      recommendation: tick.recommendation,
+      inventoryOk: tick.inventoryOk,
+      inventoryUnknownTools: tick.inventoryUnknownTools,
+      sessionCharterBinding: String(tick.sessionCharterBinding),
+      processDeniedBySession: tick.processDeniedBySession,
+      observedToolCount: observed.length,
+      message: tick.message,
+    });
+    return {
+      ...tick,
+      sessionId,
+      observedToolCount: observed.length,
+    };
   }
 
   async exportPack(sessionId: string): Promise<SessionEvidencePack> {
@@ -1076,7 +1146,10 @@ export type {
   DossierAttachment,
   InventoryCheckResult,
   InventoryPin,
+  ProcessTickSummary,
   SessionEvidencePack,
 };
 export type { GenerationRecord };
+export type { ProcessTickResult };
 export { resolveCharterDualEval };
+export { resolveProcessTick };

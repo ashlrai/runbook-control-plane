@@ -230,6 +230,50 @@ describe("@runbook/session", () => {
     expect(bad.valid).toBe(false);
   });
 
+  it("processTicks defaults to empty array on create", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-ticks-default-"));
+    const store = new SessionStore({ rootDir: dir });
+    const session = await store.create({
+      sessionId: "CPS-TICKS-DEFAULT",
+      label: "Process ticks default",
+    });
+    expect(session.processTicks).toEqual([]);
+  });
+
+  it("recordProcessTick appends and rings at max 64", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-ticks-ring-"));
+    const store = new SessionStore({ rootDir: dir });
+    await store.create({
+      sessionId: "CPS-TICKS-RING",
+      label: "Process ticks ring buffer",
+    });
+
+    const base = {
+      recommendation: "proceed" as const,
+      inventoryOk: true,
+      inventoryUnknownTools: [] as string[],
+      sessionCharterBinding: "not-evaluated",
+      processDeniedBySession: false,
+      observedToolCount: 1,
+      message: "Inventory within pin.",
+    };
+
+    for (let i = 0; i < 70; i += 1) {
+      await store.recordProcessTick("CPS-TICKS-RING", {
+        ...base,
+        recommendation: i % 3 === 0 ? "stop" : i % 3 === 1 ? "warn" : "proceed",
+        message: `tick-${i}`,
+        recordedAt: new Date(Date.UTC(2026, 6, 23, 0, 0, i)).toISOString(),
+      });
+    }
+
+    const session = await store.read("CPS-TICKS-RING");
+    expect(session.processTicks).toHaveLength(64);
+    expect(session.processTicks[0]?.message).toBe("tick-6");
+    expect(session.processTicks[63]?.message).toBe("tick-69");
+    expect(session.processTicks.every((t) => typeof t.recordedAt === "string")).toBe(true);
+  });
+
   it("resolveProcessTick stops on inventory fail", () => {
     const pin = buildPublicDocsInventoryPin({ createdAt: "2026-07-23T00:00:00.000Z" });
     const inventory = checkObservedToolsAgainstPin(

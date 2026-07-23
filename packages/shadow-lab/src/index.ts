@@ -73,3 +73,10 @@ export {
   type TournamentLineage,
   type TournamentSeedKind,
 } from "./tournament.js";
+
+export {
+  normalizeOperatorScenario,
+  mergeOperatorScenarios,
+  evaluateOperatorAugmentedCurriculum,
+  type OperatorScenarioDraft,
+} from "./operator-scenario.js";

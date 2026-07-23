@@ -82,6 +82,22 @@ export const shadowGenerationSummarySchema = z
   })
   .strict();
 
+/** Ring-buffer entry from runbook_process_tick (process-layer only). */
+export const processTickSummarySchema = z
+  .object({
+    recordedAt: z.string().datetime(),
+    recommendation: z.enum(["proceed", "warn", "stop"]),
+    inventoryOk: z.boolean(),
+    inventoryUnknownTools: z.array(z.string()).max(32).default([]),
+    sessionCharterBinding: z.string().max(80),
+    processDeniedBySession: z.boolean(),
+    observedToolCount: z.number().int().nonnegative(),
+    message: z.string().max(500),
+  })
+  .strict();
+
+export type ProcessTickSummary = z.infer<typeof processTickSummarySchema>;
+
 export const controlPlaneSessionSchema = z
   .object({
     schemaVersion: z.literal(SESSION_SCHEMA),
@@ -114,6 +130,8 @@ export const controlPlaneSessionSchema = z
     shadowGenerations: z.array(shadowGenerationSummarySchema).max(32).default([]),
     lastShadowHardFalseAllows: z.number().int().nonnegative().optional(),
     lastShadowHardFalseDenies: z.number().int().nonnegative().optional(),
+    /** Last 64 process_tick summaries (supervisor heartbeat history). */
+    processTicks: z.array(processTickSummarySchema).max(64).default([]),
     dossierAttachments: z.array(dossierAttachmentSchema).max(32).default([]),
     notes: z.array(z.string().max(500)).max(50).default([]),
     limitations: z.array(z.string()).default([

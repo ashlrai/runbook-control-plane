@@ -53,8 +53,8 @@ describe("Hosted showcase", () => {
       expect(hrefs.some((h) => h?.startsWith("/control-room?sessionId="))).toBe(true);
       expect(screen.getByRole("link", { name: /Download process claims/i })).toBeTruthy();
       const surfaceNote = screen.getByLabelText("Surface version after success").textContent ?? "";
-      expect(surfaceNote).toMatch(/v0\.4\.3/);
-      expect(surfaceNote).toMatch(/42 tools/);
+      expect(surfaceNote).toMatch(/v0\.4\.4/);
+      expect(surfaceNote).toMatch(/44 tools/);
     },
     35_000,
   );

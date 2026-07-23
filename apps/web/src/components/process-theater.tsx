@@ -13,17 +13,36 @@ import {
   Terminal,
 } from "lucide-react";
 import { evaluateAgentProcess, type AgentEvalReport } from "@runbook/engine/agent-eval";
+import type { TradeProposal } from "@runbook/engine/schema";
+import {
+  evaluateOperatorAugmentedCurriculum,
+  REFERENCE_ELITE_POLICY,
+  type OperatorScenarioDraft,
+} from "@runbook/shadow-lab";
 import { BrandMark } from "./brand-mark";
 import {
   browserSessionStore,
   buildPublicDocsInventoryPin,
   demoCharterDualEval,
+  elitePolicy,
   type ControlPlaneSession,
   type CharterDualEvalResult,
 } from "../lib/control-plane-session";
 import { EXPERIMENT_ID, SAMPLE_LEDGER_EVENTS } from "../lib/sample-ledger-events";
 import { HOSTED_TRUTH_RAIL, SITE_ORIGIN } from "../lib/site";
 import styles from "./process-theater.module.css";
+
+type OperatorProbeResult = {
+  hardFalseAllows: number;
+  hardFalseDenies: number;
+  scenarioCount: number;
+  operatorScenarioCount: number;
+  closedCurriculumCount: number;
+  policySource: "session-charter" | "elite-reference";
+  brokerEffect: false;
+  compositeScore: false;
+  notTradingPerformance: true;
+};
 
 type TimelineEvent = {
   id: string;
@@ -106,6 +125,15 @@ export function ProcessTheater() {
   const [agentEval, setAgentEval] = useState<AgentEvalReport | null>(null);
   const [agentEvalNote, setAgentEvalNote] = useState(
     "Load the embedded sample ledger and run process axes only — never a composite score.",
+  );
+  const [opId, setOpId] = useState("probe-gme");
+  const [opLabel, setOpLabel] = useState("Operator deny-expect GME equity");
+  const [opShouldAllow, setOpShouldAllow] = useState(false);
+  const [opSymbol, setOpSymbol] = useState("GME");
+  const [opInstrument, setOpInstrument] = useState<"equity" | "option" | "crypto">("equity");
+  const [opResult, setOpResult] = useState<OperatorProbeResult | null>(null);
+  const [opNote, setOpNote] = useState(
+    "Author a synthetic operator scenario and evaluate against session charter (or elite policy). HFA/HFD only — never a composite score.",
   );
 
   const refresh = useCallback(() => {
@@ -202,6 +230,57 @@ export function ProcessTheater() {
       setAgentEvalNote(error instanceof Error ? error.message : "Agent process eval failed.");
     }
   }, []);
+
+  const runOperatorScenarioProbe = useCallback(() => {
+    try {
+      const live = selected ? browserSessionStore.read(selected.sessionId) : null;
+      const policy = live?.charter ? live.charter : elitePolicy();
+      const policySource: OperatorProbeResult["policySource"] = live?.charter
+        ? "session-charter"
+        : "elite-reference";
+
+      const proposal: TradeProposal = {
+        proposalId: `operator-probe-${opId.trim() || "draft"}`,
+        experimentId: live?.experimentId ?? "RUN-OPERATOR-PROBE",
+        symbol: opSymbol.trim().toUpperCase() || "GME",
+        instrument: opInstrument,
+        side: "buy",
+        notional: 50,
+        projectedPositionNotional: 50,
+        dailyTradesAfter: 1,
+        currentDrawdownPercent: 0.5,
+        hasThesis: true,
+        hasInvalidation: true,
+        evidenceSourceCount: 2,
+      };
+
+      const draft: OperatorScenarioDraft = {
+        id: opId.trim() || "probe",
+        label: opLabel.trim() || "Operator scenario",
+        shouldAllow: opShouldAllow,
+        proposal,
+      };
+
+      const result = evaluateOperatorAugmentedCurriculum(policy, [draft]);
+      setOpResult({
+        hardFalseAllows: result.hardFalseAllows,
+        hardFalseDenies: result.hardFalseDenies,
+        scenarioCount: result.scenarioCount,
+        operatorScenarioCount: result.operatorScenarioCount,
+        closedCurriculumCount: result.closedCurriculumCount,
+        policySource,
+        brokerEffect: false,
+        compositeScore: false,
+        notTradingPerformance: true,
+      });
+      setOpNote(
+        `Operator probe · HFA ${result.hardFalseAllows} / HFD ${result.hardFalseDenies} · scenarios=${result.scenarioCount} (closed ${result.closedCurriculumCount} + operator ${result.operatorScenarioCount}) · policy=${policySource} · compositeScore=false · not trading performance`,
+      );
+    } catch (error) {
+      setOpResult(null);
+      setOpNote(error instanceof Error ? error.message : "Operator scenario probe failed.");
+    }
+  }, [selected, opId, opLabel, opShouldAllow, opSymbol, opInstrument]);
 
   return (
     <main className={styles.page}>
@@ -429,6 +508,123 @@ export function ProcessTheater() {
           </div>
         </section>
       </div>
+
+      <section
+        className={styles.panel}
+        aria-labelledby="operator-probe-title"
+        style={{ margin: "0 clamp(20px, 4vw, 64px) 24px" }}
+      >
+        <div className={styles.panelHead}>
+          <div>
+            <p className={styles.eyebrow}>runbook.operator-scenario-eval.v1 · process training only</p>
+            <h2 id="operator-probe-title">Operator scenario probe</h2>
+          </div>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={runOperatorScenarioProbe}
+            aria-label="Evaluate operator scenario"
+          >
+            <Play size={15} aria-hidden="true" />
+            Evaluate operator scenario
+          </button>
+        </div>
+        <p className={styles.statusNote}>{opNote}</p>
+        <div className={styles.sectionBody}>
+          <p className={styles.empty} style={{ padding: 0, margin: 0 }}>
+            Closed curriculum + one operator-authored scenario. Policy prefers the selected
+            session charter; falls back to elite reference ({REFERENCE_ELITE_POLICY.allowedInstruments.join(
+              "/",
+            )}
+            ). Synthetic process labels only — not market truth, not broker enforcement. Shows
+            hardFalseAllows / hardFalseDenies only — never a composite score.
+          </p>
+          <div className={styles.opForm} aria-label="Operator scenario form">
+            <label>
+              Scenario id
+              <input
+                value={opId}
+                onChange={(event) => setOpId(event.target.value)}
+                maxLength={80}
+                aria-label="Operator scenario id"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Label
+              <input
+                value={opLabel}
+                onChange={(event) => setOpLabel(event.target.value)}
+                maxLength={200}
+                aria-label="Operator scenario label"
+              />
+            </label>
+            <label className={styles.opCheck}>
+              <input
+                type="checkbox"
+                checked={opShouldAllow}
+                onChange={(event) => setOpShouldAllow(event.target.checked)}
+                aria-label="Operator shouldAllow"
+              />
+              shouldAllow (operator intent under policy)
+            </label>
+            <label>
+              Symbol
+              <input
+                value={opSymbol}
+                onChange={(event) => setOpSymbol(event.target.value)}
+                maxLength={16}
+                aria-label="Operator scenario symbol"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Instrument
+              <select
+                value={opInstrument}
+                onChange={(event) =>
+                  setOpInstrument(event.target.value as "equity" | "option" | "crypto")
+                }
+                aria-label="Operator scenario instrument"
+              >
+                <option value="equity">equity</option>
+                <option value="option">option</option>
+                <option value="crypto">crypto</option>
+              </select>
+            </label>
+          </div>
+
+          {opResult ? (
+            <div className={styles.metrics} aria-label="Operator scenario eval result">
+              <div>
+                <span>hardFalseAllows</span>
+                <strong data-passed={opResult.hardFalseAllows === 0 ? "true" : "false"}>
+                  {opResult.hardFalseAllows}
+                </strong>
+              </div>
+              <div>
+                <span>hardFalseDenies</span>
+                <strong data-passed={opResult.hardFalseDenies === 0 ? "true" : "false"}>
+                  {opResult.hardFalseDenies}
+                </strong>
+              </div>
+              <div>
+                <span>Scenarios</span>
+                <strong>
+                  {opResult.scenarioCount} (closed {opResult.closedCurriculumCount} + op{" "}
+                  {opResult.operatorScenarioCount})
+                </strong>
+              </div>
+              <div>
+                <span>Policy / honesty</span>
+                <strong>
+                  {opResult.policySource} · compositeScore=false · notTradingPerformance
+                </strong>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <section className={styles.panel} aria-labelledby="agent-eval-title" style={{ margin: "0 clamp(20px, 4vw, 64px) 24px" }}>
         <div className={styles.panelHead}>

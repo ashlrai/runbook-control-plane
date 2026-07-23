@@ -1,7 +1,7 @@
 /**
  * Static MCP cockpit catalog for the web surface.
  * Mirrors packages/mcp closed inventory (surface.ts / tool-contract):
- * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 9 elite = 42 tools.
+ * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 11 elite = 44 tools.
  * No network, no credentials, brokerEffect always false.
  */
 
@@ -348,13 +348,27 @@ export const MCP_TOOLS: readonly McpToolRow[] = [
     lane: "elite",
     readOnly: true,
   },
+  {
+    name: "runbook_session_list_process_ticks",
+    effect: "List process_tick ring buffer (last 64)",
+    assurance: "local-session-only",
+    lane: "elite",
+    readOnly: true,
+  },
+  {
+    name: "runbook_operator_scenario_eval",
+    effect: "Closed curriculum + operator scenarios → HFA/HFD",
+    assurance: "synthetic-curriculum-process-quality-only",
+    lane: "elite",
+    readOnly: true,
+  },
 ] as const;
 
 export const MCP_TOOL_COUNT = MCP_TOOLS.length;
 
 /** Closed MCP surface lock constants — mirror packages/mcp/src/surface.ts (static cockpit display). */
 export const MCP_SERVER_NAME = "runbook" as const;
-export const MCP_SERVER_VERSION = "0.4.3" as const;
+export const MCP_SERVER_VERSION = "0.4.4" as const;
 
 /**
  * Static surface-lock summary for the hosted cockpit.

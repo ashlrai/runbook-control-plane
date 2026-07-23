@@ -6,7 +6,7 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.4.3` |
+| Server name / version | `runbook` / `0.4.4` |
 | Tools | 39 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |
@@ -29,7 +29,7 @@ pnpm demo:frontier
 pnpm demo:elite
 # Optional: multi-charter Pareto tournament
 pnpm demo:tournament
-# Optional smokes (closed 42-tool surface + shadow + dossier)
+# Optional smokes (closed 44-tool surface + shadow + dossier)
 pnpm smoke:elite          # @runbook/shadow-lab + @runbook/mcp tests
 pnpm smoke:web-shadow     # web vitest for shadow-lab UI/browser adapter
 pnpm smoke:dossier        # financial-dossier-process-bridge tests

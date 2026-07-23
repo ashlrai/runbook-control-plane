@@ -59,7 +59,7 @@ describe("elite wave MCP tools", () => {
     await rm(harness.directory, { recursive: true, force: true });
   });
 
-  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.3", async () => {
+  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.4", async () => {
     const result = await harness.client.callTool({
       name: "runbook_surface_lock_receipt",
       arguments: {},
@@ -69,7 +69,7 @@ describe("elite wave MCP tools", () => {
     expect(body).toMatchObject({
       schemaVersion: "runbook.surface-lock-receipt.v1",
       serverName: "runbook",
-      serverVersion: "0.4.3",
+      serverVersion: "0.4.4",
       toolCount: TOOL_NAMES.length,
       hasPlaceOrCancelTools: false,
       openWorldHint: false,
@@ -78,9 +78,11 @@ describe("elite wave MCP tools", () => {
     });
     expect(body.brokerExecutionTools).toEqual([]);
     expect(String(body.toolSetSha256)).toHaveLength(64);
-    expect(TOOL_NAMES.length).toBe(42);
+    expect(TOOL_NAMES.length).toBe(44);
     expect(TOOL_NAMES).toContain("runbook_session_attach_surface_lock");
     expect(TOOL_NAMES).toContain("runbook_gateway_quorum_demo");
+    expect(TOOL_NAMES).toContain("runbook_session_list_process_ticks");
+    expect(TOOL_NAMES).toContain("runbook_operator_scenario_eval");
   });
 
   it("attach_surface_lock attaches operator-note with toolSetSha256 evidenceRef", async () => {
@@ -110,7 +112,7 @@ describe("elite wave MCP tools", () => {
       schemaVersion: "runbook.session-attach-surface-lock.v1",
       sessionId: "CPS-ATTACH-LOCK-001",
       toolCount: TOOL_NAMES.length,
-      serverVersion: "0.4.3",
+      serverVersion: "0.4.4",
       toolSetSha256,
       brokerEffect: false,
       compositeScore: false,
@@ -140,12 +142,12 @@ describe("elite wave MCP tools", () => {
     expect(note?.kind).toBe("operator-note");
     expect(note?.evidenceRef).toBe(toolSetSha256);
     expect(note?.summary).toContain(`toolCount=${TOOL_NAMES.length}`);
-    expect(note?.summary).toContain("version=0.4.3");
+    expect(note?.summary).toContain("version=0.4.4");
     expect(note?.summary).toContain(toolSetSha256);
     expect(session.notes?.some((n) => n.includes("attach_surface_lock"))).toBe(true);
   });
 
-  it("process_tick stop on unknown tool with fail-closed pin", async () => {
+  it("process_tick stop on unknown tool with fail-closed pin and records processTicks", async () => {
     await harness.client.callTool({
       name: "runbook_session_create",
       arguments: {
@@ -180,6 +182,103 @@ describe("elite wave MCP tools", () => {
     expect(structured(tick).inventoryUnknownTools as string[]).toContain(
       "place_crypto_order_unknown",
     );
+
+    const listed = await harness.client.callTool({
+      name: "runbook_session_list_process_ticks",
+      arguments: { sessionId: "CPS-TICK-001" },
+    });
+    expect(listed.isError).not.toBe(true);
+    const listBody = structured(listed);
+    expect(listBody).toMatchObject({
+      schemaVersion: "runbook.session-list-process-ticks.v1",
+      sessionId: "CPS-TICK-001",
+      count: 1,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    const processTicks = listBody.processTicks as Array<{
+      recommendation: string;
+      inventoryOk: boolean;
+      observedToolCount: number;
+      inventoryUnknownTools: string[];
+    }>;
+    expect(processTicks).toHaveLength(1);
+    expect(processTicks[0]).toMatchObject({
+      recommendation: "stop",
+      inventoryOk: false,
+      observedToolCount: 2,
+    });
+    expect(processTicks[0]?.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+
+    const got = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-TICK-001" },
+    });
+    const session = structured(got).session as {
+      processTicks?: unknown[];
+      notes?: string[];
+    };
+    expect(session.processTicks).toHaveLength(1);
+    expect(session.notes?.some((n) => n.includes("process_tick"))).toBe(true);
+  });
+
+  it("operator_scenario_eval reports hardFalseAllows for weak policy", async () => {
+    const weakPolicy = {
+      capitalBudget: 10_000,
+      cashReserve: 100,
+      maxPositionPercent: 100,
+      maxOrderNotional: 9_000,
+      maxDrawdownPercent: 50,
+      maxDailyTrades: 100,
+      allowedInstruments: ["equity", "option", "crypto"] as const,
+      allowedSymbols: [] as string[],
+      deniedSymbols: [] as string[],
+      approvalRequired: false,
+    };
+
+    const evalResult = await harness.client.callTool({
+      name: "runbook_operator_scenario_eval",
+      arguments: {
+        policy: weakPolicy,
+        scenarios: [
+          {
+            id: "allow-option-spy",
+            label: "Operator expects option SPY allow",
+            shouldAllow: false,
+            proposal: {
+              proposalId: "op-opt-spy",
+              experimentId: "RUN-OP-SCEN",
+              symbol: "SPY",
+              instrument: "option",
+              side: "buy",
+              notional: 50,
+              projectedPositionNotional: 50,
+              dailyTradesAfter: 1,
+              currentDrawdownPercent: 0.5,
+              hasThesis: true,
+              hasInvalidation: true,
+              evidenceSourceCount: 1,
+            },
+          },
+        ],
+      },
+    });
+    expect(evalResult.isError).not.toBe(true);
+    const body = structured(evalResult);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.operator-scenario-eval.v1",
+      policySource: "override",
+      brokerEffect: false,
+      compositeScore: false,
+      notTradingPerformance: true,
+    });
+    expect(Number(body.hardFalseAllows)).toBeGreaterThan(0);
+    expect(Number(body.scenarioCount)).toBeGreaterThanOrEqual(1);
+    expect(Number(body.operatorScenarioCount)).toBe(1);
+    expect(Number(body.closedCurriculumCount)).toBeGreaterThan(0);
+    expect(Array.isArray(body.limitations)).toBe(true);
+    expect((body.limitations as string[]).length).toBeGreaterThan(0);
   });
 
   it("drift_sentinel fail-closed on sample with place_crypto_order_unknown", async () => {

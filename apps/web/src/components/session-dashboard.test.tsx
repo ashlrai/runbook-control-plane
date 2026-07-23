@@ -230,6 +230,56 @@ describe("Session dashboard", () => {
     expect(browserSessionStore.read(sessionId).charterBindingEnforcement).toBe("fail-closed");
   });
 
+  it("runs sample supervisor tick and shows process ticks history with stop recommendation", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "elite" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Process ticks demo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Process ticks demo/i })).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText("Process ticks")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Run sample supervisor tick/i })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/process-layer only/i);
+    expect(document.body.textContent).not.toMatch(/100\/100|agent certified|safety score:/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /Pin public-docs inventory/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Pinned public-docs inventory/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Cycle charter binding/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Charter binding enforcement").textContent).toMatch(
+        /fail-closed/i,
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Run sample supervisor tick/i }));
+
+    await waitFor(() => {
+      const history = screen.getByLabelText("Process ticks history");
+      expect(history).toBeTruthy();
+      expect(history.textContent).toMatch(/stop/i);
+      expect(history.textContent).toMatch(/place_crypto_order_unknown/i);
+      expect(history.textContent).toMatch(/inventoryOk=false/);
+    });
+
+    const sessionId = browserSessionStore.list()[0]!.sessionId;
+    const ticks = browserSessionStore.read(sessionId).processTicks;
+    expect(ticks).toHaveLength(1);
+    expect(ticks[0]?.recommendation).toBe("stop");
+    expect(ticks[0]?.inventoryOk).toBe(false);
+    expect(ticks[0]?.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+  });
+
   it("imports tools/list sample JSON and fail-closes on place_crypto_order_unknown", async () => {
     render(<SessionDashboard />);
 

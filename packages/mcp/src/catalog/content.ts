@@ -157,7 +157,7 @@ export const ASSURANCE_JSON = `{
 export const TOOL_CONTRACT_JSON = `{
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.3",
+  "serverVersion": "0.4.4",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -573,6 +573,26 @@ export const TOOL_CONTRACT_JSON = `{
         "authorizationEstablished",
         "brokerEffect"
       ]
+    },
+    {
+      "name": "runbook_session_list_process_ticks",
+      "effect": "list-session-process-tick-ring-buffer",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Returns last 64 process_tick summaries for a session. Process evidence only."
+    },
+    {
+      "name": "runbook_operator_scenario_eval",
+      "effect": "operator-augmented-curriculum-eval",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false,
+      "notes": "Closed curriculum + up to 8 operator scenarios. hardFalseAllows/Denies only — not trading performance."
     }
   ],
   "discoveryResources": [
@@ -1086,6 +1106,108 @@ pnpm demo:recursive   # or pnpm demo:elite
 - not-broker-enforcement / advisory-only
 - no-composite-safety-or-skill-score
 - improve does not auto-activate; activation is explicit local ledger write only
+`;
+
+export const PLAYBOOK_PROCESS_SUPERVISOR_ELITE_MD = `# Process supervisor — elite wave playbook
+
+**URI:** \`runbook://playbooks/process-supervisor-elite\`  
+**Mode:** local control-plane session + process-layer supervisor tools. **No network. No broker. No live capital.**  
+**Claim level:** process / inventory heartbeat only — **never** trading performance, alpha, PnL, returns, or hard broker gateway.
+
+This playbook freezes the **elite process-supervisor loop**: surface lock → pin → process tick → dual-check → seal → gateway demo. Follow steps in order. Multi-axis process signals only; never invent a composite safety or skill score.
+
+## Hard rules (NEVER)
+
+1. **NEVER broker** — do not configure Robinhood Trading MCP (or any brokerage MCP); do not call \`place_*\` / \`cancel_*\` (they are not on this surface); do not request credentials or card numbers.
+2. **NEVER returns claims** — do not claim returns, alpha, sharpe, skill, capital allocation quality, or “the agent is profitable.”
+3. **NEVER composite score** — keep inventory, tick recommendation, dual-eval, seal, and gateway axes separate.
+4. **Tick is process-layer only** — \`proceed|warn|stop\` is **not** a hard broker gateway. The host may still bypass Runbook with other tools.
+5. **Seal is self-asserted synthetic** — process capsule seal is portable evidence, not certification or broker issuance.
+6. **Gateway quorum is local theater** — never place/cancel; \`humanAuthorityEstablished\` / \`authorizationEstablished\` remain **false**.
+
+## Linked surfaces
+
+| Kind | Name / URI |
+| --- | --- |
+| Prompt | \`runbook_process_supervisor\` |
+| Sibling playbook | \`runbook://playbooks/control-plane-session\` |
+| Boundary | \`runbook://docs/boundary\`, \`runbook://docs/assurance\` |
+| Surface tools | \`runbook_list_surface\`, \`runbook_surface_lock_receipt\` |
+| Session tools | \`runbook_session_create\`, \`runbook_session_use\`, \`runbook_session_pin_inventory\`, \`runbook_session_get\`, \`runbook_session_export\` |
+| Supervisor tools | \`runbook_process_tick\`, \`runbook_dual_check_diff\`, \`runbook_session_seal_capsule\`, \`runbook_gateway_quorum_demo\` |
+| Related | \`runbook_drift_sentinel\`, \`runbook_session_clone_challenge\`, \`runbook_session_attach_surface_lock\` |
+| Process history / operator eval | \`runbook_session_list_process_ticks\` (session \`processTicks\` ring buffer), \`runbook_operator_scenario_eval\` (\`@runbook/shadow-lab\` evaluateOperatorAugmentedCurriculum) |
+| Operator demo | \`pnpm demo:elite-wave\` |
+
+## Elite supervisor loop (6 steps)
+
+### 1. Surface lock
+
+- Call \`runbook_surface_lock_receipt\` (or list surface first).
+- Confirm closed inventory: no \`place_*\` / \`cancel_*\`, \`brokerExecutionTools: []\`, every tool \`openWorldHint: false\`.
+- Optionally \`runbook_session_attach_surface_lock\` to attach architecture evidence on the active session.
+- Restate: surface lock attests **Runbook only** — not host MCP exclusivity.
+
+### 2. Pin inventory
+
+- Create or use a control-plane session with \`inventoryEnforcement: fail-closed\` (and preferably \`charterBindingEnforcement: fail-closed\`).
+- Call \`runbook_session_pin_inventory\` (public-docs research pin or least-privilege preset via drift sentinel).
+- Report \`toolCount\` and \`toolSetSha256\`.
+- Restate: pin is research projection / process pin — **not** broker permission.
+
+### 3. process_tick
+
+- Before any external/broker-adjacent tool names, call \`runbook_process_tick\` with \`observedToolNames\` (tools you intend to call) and optional proposal.
+- Expect schema \`runbook.process-tick.v1\`, recommendation \`proceed|warn|stop\`, \`brokerEffect: false\`, \`capitalAtRisk: 0\`, \`compositeScore: false\`.
+- **Golden stop demo:** include an unknown tool (e.g. \`place_crypto_order_unknown\`) under fail-closed pin → expect \`recommendation: stop\`, \`inventoryOk: false\`.
+- Review tick history via \`runbook_session_list_process_ticks\` / session \`processTicks\` (ring buffer, last 64) after ticks are recorded.
+- If \`stop\` — do not proceed; report unknown tools and dual-eval binding. If \`warn\` — surface risk. If \`proceed\` — continue process work only.
+
+### 4. dual_check
+
+- Call \`runbook_dual_check_diff\` with a weak ledger policy twin vs elite session charter on a denied path (e.g. option SPY).
+- Expect disagreement and, under fail-closed, \`processDeniedBySession: true\` when session denies.
+- Restate: process deny is **not** a hard broker gateway.
+
+### 5. Seal
+
+- When the session is ready for portable process evidence, call \`runbook_session_seal_capsule\`.
+- Expect a synthetic process capsule (self-asserted); export pack remains \`notTradingPerformance: true\`.
+- Optional: \`runbook_session_clone_challenge\` for one-rule process fork (not a safer strategy claim).
+
+### 6. Gateway demo
+
+- Call \`runbook_gateway_quorum_demo\` for local authorize/deny/replay theater.
+- Confirm honesty flags: never place/cancel; \`humanAuthorityEstablished: false\`; \`authorizationEstablished: false\`.
+- Optional curriculum hardening: \`runbook_operator_scenario_eval\` with operator-authored option-should-deny (and similar) scenarios against the elite charter — expect \`hardFalseAllows: 0\` on a tight equities-only policy. Synthetic process labels only.
+
+## Expected golden signals (protocol freeze)
+
+| Step | Signal |
+| --- | --- |
+| Surface lock | no place/cancel; brokerExecutionTools [] |
+| Pin | fail-closed pin present; toolSetSha256 length 64 |
+| process_tick (unknown tool) | recommendation stop; inventoryOk false |
+| dual_check (option vs elite) | disagreement; processDeniedBySession under fail-closed |
+| Seal | capsule id + archive sha present; synthetic process evidence |
+| Gateway demo | local theater only; authority flags false |
+
+## Operator CLI
+
+\`\`\`bash
+pnpm demo:elite-wave
+# → runbook.elite-wave-story.v1 receipt on stdout
+\`\`\`
+
+## Limitations (always restate)
+
+- process-layer-only-not-hard-broker-gateway
+- host-may-bypass-runbook-with-other-tools
+- surface-lock-attests-runbook-only
+- seal-is-self-asserted-synthetic-capsule
+- gateway-quorum-is-local-authorization-theater
+- not-trading-performance / no-composite-safety-score
+- operator-scenarios-are-synthetic-process-labels-not-market-truth
 `;
 
 export const STATUS_DOSSIER_MD = `# Runbook Pre-Capital Dossier — honest V2 status

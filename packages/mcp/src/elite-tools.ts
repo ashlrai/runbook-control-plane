@@ -1,13 +1,14 @@
 /**
- * Elite wave tools: surface lock, process tick, pack import, process capsule seal,
- * drift sentinel, clone-challenge, dual check-diff, gateway quorum demo.
+ * Elite wave tools: surface lock, process tick, list process ticks, operator scenario
+ * eval, pack import, process capsule seal, drift sentinel, clone-challenge, dual
+ * check-diff, gateway quorum demo.
  * Process evidence only — not trading performance, not hard broker gateway.
  */
 
 import { webcrypto } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { evaluateProposal } from "@runbook/engine/policy";
-import { tradeProposalSchema } from "@runbook/engine/schema";
+import { riskPolicySchema, tradeProposalSchema } from "@runbook/engine/schema";
 import {
   finalizeProofCapsule,
   prepareProofCapsule,
@@ -31,7 +32,10 @@ import {
   type ChallengeMutationId,
   type InventoryPinPreset,
 } from "@runbook/session";
-import { WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
+import {
+  evaluateOperatorAugmentedCurriculum,
+  WEAK_STARTER_POLICY,
+} from "@runbook/shadow-lab";
 import * as z from "zod/v4";
 import { runDriftSentinel } from "./drift-sentinel.js";
 import { runGatewayQuorumDemo } from "./gateway-demo.js";
@@ -187,6 +191,15 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
       }
 
       const tick = resolveProcessTick({ inventory, ...(dual !== undefined ? { dualEval: dual } : {}) });
+      await store.recordProcessTick(sessionId, {
+        recommendation: tick.recommendation,
+        inventoryOk: tick.inventoryOk,
+        inventoryUnknownTools: [...tick.inventoryUnknownTools],
+        sessionCharterBinding: tick.sessionCharterBinding,
+        processDeniedBySession: tick.processDeniedBySession,
+        observedToolCount: input.observedToolNames.length,
+        message: tick.message,
+      });
       await appendSessionNote(
         store,
         sessionId,
@@ -196,6 +209,125 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
         ...tick,
         limitations: [...tick.limitations],
         sessionId,
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_session_list_process_ticks",
+    {
+      title: "List Session Process Ticks",
+      description:
+        "Return the ring-buffer of process_tick summaries for a control-plane session (last 64). Read-only local session evidence — not live broker inventory truth. brokerEffect false.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.session-list-process-ticks.v1"),
+        sessionId: z.string(),
+        count: z.number().int().nonnegative(),
+        processTicks: z.array(z.record(z.string(), z.unknown())),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+      },
+      annotations: offlineAnnotations,
+    },
+    withToolErrors(async (input) => {
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      if (sessionId === undefined) {
+        throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+      }
+      const session = await getStore(options).read(sessionId);
+      const processTicks = session.processTicks ?? [];
+      return {
+        schemaVersion: "runbook.session-list-process-ticks.v1" as const,
+        sessionId,
+        count: processTicks.length,
+        processTicks: jsonSafe(processTicks),
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        capitalAtRisk: 0 as const,
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_operator_scenario_eval",
+    {
+      title: "Operator Scenario Curriculum Eval",
+      description:
+        "Evaluate a policy (session charter or policy override) against the closed synthetic shadow curriculum plus up to 8 operator-authored scenarios. Returns hardFalseAllows/hardFalseDenies process metrics. Synthetic labels only — not market truth, not trading performance, not a hard broker gateway.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+        policy: riskPolicySchema.optional(),
+        scenarios: z
+          .array(
+            z.object({
+              id: z.string().trim().min(1).max(80),
+              label: z.string().trim().min(1).max(200),
+              shouldAllow: z.boolean(),
+              proposal: tradeProposalSchema,
+            }),
+          )
+          .max(8),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.operator-scenario-eval.v1"),
+        sessionId: z.string().optional(),
+        policySource: z.enum(["override", "session-charter"]),
+        scenarioCount: z.number().int().nonnegative(),
+        operatorScenarioCount: z.number().int().nonnegative(),
+        closedCurriculumCount: z.number().int().nonnegative(),
+        hardFalseAllows: z.number().int().nonnegative(),
+        hardFalseDenies: z.number().int().nonnegative(),
+        report: z.record(z.string(), z.unknown()),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        notTradingPerformance: z.literal(true),
+        limitations: z.array(z.string()),
+      },
+      annotations: offlineAnnotations,
+    },
+    withToolErrors(async (input) => {
+      let policy = input.policy;
+      let policySource: "override" | "session-charter" = "override";
+      let sessionId: string | undefined;
+
+      if (policy === undefined) {
+        sessionId = await resolveSessionId(input.sessionId, options);
+        if (sessionId === undefined) {
+          throw new Error(
+            "operator_scenario_eval requires policy override or sessionId with a session charter.",
+          );
+        }
+        const session = await getStore(options).read(sessionId);
+        if (session.charter === undefined) {
+          throw new Error(
+            "Session has no charter; set a charter or pass policy for operator scenario eval.",
+          );
+        }
+        policy = session.charter;
+        policySource = "session-charter";
+      } else if (input.sessionId !== undefined) {
+        sessionId = await resolveSessionId(input.sessionId, options);
+      }
+
+      const result = evaluateOperatorAugmentedCurriculum(policy, input.scenarios);
+      return {
+        schemaVersion: "runbook.operator-scenario-eval.v1" as const,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        policySource,
+        scenarioCount: result.scenarioCount,
+        operatorScenarioCount: result.operatorScenarioCount,
+        closedCurriculumCount: result.closedCurriculumCount,
+        hardFalseAllows: result.hardFalseAllows,
+        hardFalseDenies: result.hardFalseDenies,
+        report: jsonSafe(result.report),
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        notTradingPerformance: true as const,
+        limitations: [...result.limitations],
       };
     }),
   );

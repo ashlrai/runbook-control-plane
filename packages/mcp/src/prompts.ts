@@ -376,7 +376,7 @@ export function registerRunbookPrompts(server: McpServer): void {
     {
       title: "Process supervisor (tick before external tools)",
       description:
-        "Mid-flight process heartbeat: pin inventory, surface lock, process_tick with observed tools and optional proposal. proceed|warn|stop is process-layer only — not a hard broker gateway.",
+        "Mid-flight process heartbeat: pin inventory, surface lock, process_tick with observed tools and optional proposal. proceed|warn|stop is process-layer only — not a hard broker gateway. Follow runbook://playbooks/process-supervisor-elite.",
       argsSchema: {
         sessionId: z.string().trim().min(1).max(120).optional(),
       },
@@ -391,7 +391,7 @@ export function registerRunbookPrompts(server: McpServer): void {
               type: "text",
               text: [
                 "Act as a process supervisor for a financial agent workflow using Runbook only.",
-                "Read runbook://docs/boundary and runbook://docs/assurance first.",
+                "Read runbook://docs/boundary, runbook://docs/assurance, and the elite playbook runbook://playbooks/process-supervisor-elite first.",
                 id
                   ? `Use control-plane session ${id} (or create/use it if missing).`
                   : "Create a control-plane session with charterBindingEnforcement fail-closed and inventoryEnforcement fail-closed, then runbook_session_use.",
@@ -401,7 +401,10 @@ export function registerRunbookPrompts(server: McpServer): void {
                 "4) If recommendation is stop — do not proceed; report inventory unknown tools and dual-eval binding.",
                 "5) If warn — surface the risk; continue only if the human operator accepts process risk.",
                 "6) If proceed — continue process work; still never place/cancel via Runbook (there are no place tools).",
-                "7) Optional: runbook_drift_sentinel on a local tools/list paste; runbook_session_seal_capsule when the session is ready for portable evidence.",
+                "7) Review heartbeat history with runbook_session_list_process_ticks (session processTicks ring buffer, last 64).",
+                "8) Optional dual_check: runbook_dual_check_diff (weak ledger vs elite session on a denied path).",
+                "9) Optional: runbook_drift_sentinel on a local tools/list paste; runbook_session_seal_capsule when the session is ready for portable evidence; runbook_gateway_quorum_demo for local authorization theater only.",
+                "10) Optional curriculum hardening: runbook_operator_scenario_eval with operator-authored scenarios (e.g. option-should-deny) against the elite charter — synthetic process labels only; expect hardFalseAllows 0 on a tight equities-only policy.",
                 "Hard rules: never configure brokerage MCP here; never invent composite scores or returns; process-layer only — host may still bypass Runbook.",
                 BOUNDARY_REMINDER,
               ].join("\n"),

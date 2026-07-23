@@ -23,6 +23,7 @@ describe("Process Theater", () => {
 
     expect(screen.getByRole("heading", { name: /Agent process eval/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Load sample ledger & evaluate/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Operator scenario probe/i })).toBeTruthy();
     expect(document.body.textContent).toMatch(/composite score/i);
     expect(document.body.textContent).not.toMatch(/100\/100|agent certified|safety score:/i);
   });
@@ -50,5 +51,33 @@ describe("Process Theater", () => {
 
     expect(screen.getByText(new RegExp(EXPERIMENT_ID))).toBeTruthy();
     expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toBeNull();
+  });
+
+  it("evaluates operator scenario probe with HFA/HFD only — never composite score", () => {
+    render(<ProcessTheater />);
+
+    fireEvent.change(screen.getByLabelText("Operator scenario id"), {
+      target: { value: "deny-gme" },
+    });
+    fireEvent.change(screen.getByLabelText("Operator scenario label"), {
+      target: { value: "Expect deny GME" },
+    });
+    fireEvent.change(screen.getByLabelText("Operator scenario symbol"), {
+      target: { value: "GME" },
+    });
+    fireEvent.change(screen.getByLabelText("Operator scenario instrument"), {
+      target: { value: "equity" },
+    });
+    // shouldAllow=false is the default for the probe form.
+
+    fireEvent.click(screen.getByRole("button", { name: /Evaluate operator scenario/i }));
+
+    const result = screen.getByLabelText("Operator scenario eval result");
+    expect(result).toBeTruthy();
+    expect(result.textContent).toMatch(/hardFalseAllows/);
+    expect(result.textContent).toMatch(/hardFalseDenies/);
+    expect(result.textContent).toMatch(/compositeScore=false/);
+    expect(result.textContent).toMatch(/notTradingPerformance|elite-reference|session-charter/);
+    expect(document.body.textContent).not.toMatch(/100\/100|agent certified|safety score:/i);
   });
 });

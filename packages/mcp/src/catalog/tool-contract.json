@@ -1,7 +1,7 @@
 {
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.3",
+  "serverVersion": "0.4.4",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -417,6 +417,26 @@
         "authorizationEstablished",
         "brokerEffect"
       ]
+    },
+    {
+      "name": "runbook_session_list_process_ticks",
+      "effect": "list-session-process-tick-ring-buffer",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Returns last 64 process_tick summaries for a session. Process evidence only."
+    },
+    {
+      "name": "runbook_operator_scenario_eval",
+      "effect": "operator-augmented-curriculum-eval",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "synthetic-curriculum-process-quality-only",
+      "openWorldHint": false,
+      "notes": "Closed curriculum + up to 8 operator scenarios. hardFalseAllows/Denies only — not trading performance."
     }
   ],
   "discoveryResources": [

@@ -16,6 +16,8 @@ export {
   type SessionEvidencePack,
   type SignedApprovalIntent,
   type InventoryCheckResult,
+  type ProcessTickSummary,
+  processTickSummarySchema,
 } from "./types.js";
 
 export {

@@ -21,7 +21,7 @@ describe("MCP cockpit", () => {
       expect(text).toContain(tool.name);
     }
     expect(text).toContain(String(MCP_TOOL_COUNT));
-    expect(MCP_TOOLS).toHaveLength(42);
+    expect(MCP_TOOLS).toHaveLength(44);
     expect(text).toContain(`v${MCP_SERVER_VERSION}`);
     expect(text).toContain("runbook://docs/boundary");
     expect(text).toContain("runbook://docs/assurance");
@@ -37,11 +37,11 @@ describe("MCP cockpit", () => {
     expect(text).not.toMatch(/hard gateway is active|live broker is connected|agent certified/i);
   });
 
-  it("shows static surface lock (0.4.3 / 42 / empty brokerExecutionTools / Runbook only)", () => {
+  it("shows static surface lock (0.4.4 / 44 / empty brokerExecutionTools / Runbook only)", () => {
     render(<McpCockpit />);
     const lock = screen.getByLabelText("Surface lock summary").textContent ?? "";
     expect(lock).toContain("toolCount");
-    expect(lock).toContain("42");
+    expect(lock).toContain("44");
     expect(lock).toContain("brokerExecutionTools");
     expect(lock).toMatch(/\[\] empty/);
     expect(lock).toContain("openWorldHint");

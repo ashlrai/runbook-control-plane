@@ -1,13 +1,15 @@
 /**
  * Elite wave demo story: control-plane spine + surface lock + process tick +
- * dual_check_diff + clone-challenge + seal.
+ * dual_check_diff + clone-challenge + surface lock attach + gateway quorum + seal.
  *
  * Extends control-plane-story success with:
  * 1. buildSurfaceLockReceipt
  * 2. process_tick-style inventory check with an unknown tool (expect stop)
  * 3. dual_check_diff: weak ledger vs elite session on option SPY (expect deny)
  * 4. clone-challenge: equities-only or deny-gme child session fork
- * 5. seal process capsule (synthetic)
+ * 5. attach surface lock as dossier operator-note
+ * 6. gateway quorum demo (authorize/deny/replay local theater)
+ * 7. seal process capsule (synthetic)
  *
  * Process evidence only — brokerEffect false, capital 0, not trading performance.
  */
@@ -32,6 +34,7 @@ import {
   type CapsulePayloadMember,
 } from "@runbook/capsule-author";
 import { runControlPlaneStory, type ControlPlaneStoryOptions } from "./control-plane-story.js";
+import { runGatewayQuorumDemo } from "./gateway-demo.js";
 import { TOOL_NAMES } from "./surface.js";
 import { buildSurfaceLockReceipt } from "./surface-lock.js";
 
@@ -62,6 +65,18 @@ export type EliteWaveStoryReceipt = {
   clone?: {
     childSessionId: string;
     mutationId: ChallengeMutationId;
+  };
+  surfaceLockAttached?: {
+    attachmentId: string;
+    toolSetSha256: string;
+    toolCount: number;
+  };
+  gateway?: {
+    actionType: "policy.activate";
+    decisions: Array<{ id: "authorize" | "deny" | "replay"; decision: string }>;
+    humanAuthorityEstablished: false;
+    authorizationEstablished: false;
+    brokerEffect: false;
   };
   seal: {
     capsuleId: string;
@@ -94,7 +109,7 @@ const SUCCESS_BANNER = [
   "",
   "╔══════════════════════════════════════════════════════════════╗",
   "║  SUCCESS — elite-wave story complete                         ║",
-  "║  control-plane + lock + tick stop + dual_check + clone + seal ║",
+  "║  lock + tick + dual_check + clone + attach + gateway + seal   ║",
   "║  process evidence only · brokerEffect false · capital 0       ║",
   "╚══════════════════════════════════════════════════════════════╝",
   "",
@@ -269,7 +284,64 @@ export async function runEliteWaveStory(
       }
     }
 
-    // 5. Optional seal capsule
+    // 5. Attach surface lock receipt to session as dossier operator-note
+    {
+      const summary =
+        `toolCount=${lock.toolCount} · version=${lock.serverVersion} · toolSetSha256=${lock.toolSetSha256} · ${lock.message}`.slice(
+          0,
+          1_000,
+        );
+      const attached = await store.attachDossier(sessionId, {
+        kind: "operator-note",
+        scenarioIds: [],
+        summary,
+        evidenceRef: lock.toolSetSha256,
+        honestLabel: "architecture-evidence-not-certification",
+      });
+      const attachment = attached.dossierAttachments[attached.dossierAttachments.length - 1];
+      if (attachment === undefined) {
+        errors.push("surface-lock-attach-missing");
+      } else {
+        receipt.surfaceLockAttached = {
+          attachmentId: attachment.attachmentId,
+          toolSetSha256: lock.toolSetSha256,
+          toolCount: lock.toolCount,
+        };
+        if (attachment.evidenceRef !== lock.toolSetSha256) {
+          errors.push("surface-lock-attach-evidence-mismatch");
+        }
+      }
+    }
+
+    // 6. Gateway quorum demo (local policy theater — not broker order submission)
+    {
+      const gateway = runGatewayQuorumDemo();
+      receipt.gateway = {
+        actionType: gateway.actionType,
+        decisions: gateway.scenarios.map((s) => ({ id: s.id, decision: s.decision })),
+        humanAuthorityEstablished: false,
+        authorizationEstablished: false,
+        brokerEffect: false,
+      };
+      const byId = new Map(gateway.scenarios.map((s) => [s.id, s]));
+      if (byId.get("authorize")?.decision !== "authorize") {
+        errors.push("gateway-authorize-expected");
+      }
+      if (byId.get("deny")?.decision !== "deny") {
+        errors.push("gateway-deny-expected");
+      }
+      if (byId.get("replay")?.decision !== "replay") {
+        errors.push("gateway-replay-expected");
+      }
+      if (gateway.humanAuthorityEstablished !== false || gateway.authorizationEstablished !== false) {
+        errors.push("gateway-honesty-flags");
+      }
+      if (gateway.brokerEffect !== false) {
+        errors.push("gateway-broker-effect");
+      }
+    }
+
+    // 7. Optional seal capsule
     if (!skipSeal) {
       const pack = await store.exportPack(sessionId);
       const drafts = buildProcessCapsulePayloads(pack);

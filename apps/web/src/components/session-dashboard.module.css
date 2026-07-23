@@ -613,6 +613,65 @@
   text-align: right;
 }
 
+.tickList {
+  display: grid;
+  gap: 8px;
+}
+
+.tickRow {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  background: #fbfcfe;
+  font-size: 12px;
+}
+
+.tickRow[data-recommendation="proceed"] {
+  border-color: #b9dbc9;
+  background: #e6f6ef;
+}
+
+.tickRow[data-recommendation="warn"] {
+  border-color: #efd7a0;
+  background: #fff9eb;
+}
+
+.tickRow[data-recommendation="stop"] {
+  border-color: #f0c4c4;
+  background: #fff5f5;
+}
+
+.tickRow strong {
+  justify-self: start;
+  padding: 3px 7px;
+  border: 1px solid currentColor;
+  font: 700 10px/1 var(--font-mono), monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.tickRow strong[data-recommendation="proceed"] { color: var(--sd-ok); }
+.tickRow strong[data-recommendation="warn"] { color: #9a6b12; }
+.tickRow strong[data-recommendation="stop"] { color: var(--sd-fail); }
+
+.tickRow span {
+  color: #3a475c;
+  font: 550 11px/1.35 var(--font-mono), monospace;
+}
+
+.tickRow code {
+  color: var(--sd-muted);
+  font: 500 10px/1.3 var(--font-mono), monospace;
+}
+
+.tickRow em {
+  font-style: normal;
+  color: var(--sd-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 a.ghostBtn {
   text-decoration: none;
   box-sizing: border-box;
