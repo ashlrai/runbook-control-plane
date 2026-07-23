@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { FileLedger } from "@runbook/engine/ledger";
@@ -9,6 +10,11 @@ import { ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES } from "@runbook/session";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createRunbookServer } from "./server-factory.js";
 import { RunbookService } from "./service.js";
+
+const SAMPLE_TOOLS_LIST_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../examples/sample-tools-list.json",
+);
 
 const elitePolicy: RiskPolicy = {
   capitalBudget: 500,
@@ -31,6 +37,7 @@ const SESSION_TOOL_NAMES = [
   "runbook_session_set_charter",
   "runbook_session_pin_inventory",
   "runbook_session_check_inventory",
+  "runbook_session_import_tools_list",
   "runbook_session_bind_experiment",
   "runbook_session_attach_dossier",
   "runbook_session_record_shadow",
@@ -100,12 +107,119 @@ describe("control plane session MCP tools", () => {
     expect(body.serverVersion).toBe("0.3.0");
     expect(body.brokerExecutionTools).toEqual([]);
     const tools = body.tools as Array<{ name: string; offline: boolean; openWorldHint: boolean }>;
-    expect(tools).toHaveLength(32);
+    expect(tools).toHaveLength(33);
     for (const name of SESSION_TOOL_NAMES) {
       const entry = tools.find((t) => t.name === name);
       expect(entry?.offline).toBe(true);
       expect(entry?.openWorldHint).toBe(false);
     }
+  });
+
+  it("imports local tools/list JSON and fail-closes on unknown tool", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: { sessionId: "CPS-IMPORT-001", label: "Import tools list" },
+    });
+    await harness.client.callTool({
+      name: "runbook_session_pin_inventory",
+      arguments: { sessionId: "CPS-IMPORT-001" },
+    });
+
+    const fromPath = await harness.client.callTool({
+      name: "runbook_session_import_tools_list",
+      arguments: {
+        sessionId: "CPS-IMPORT-001",
+        path: SAMPLE_TOOLS_LIST_PATH,
+      },
+    });
+    expect(fromPath.isError).not.toBe(true);
+    const body = structured(fromPath);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.session-import-tools-list.v1",
+      ok: false,
+      enforcement: "fail-closed",
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+      inputSource: "path",
+      source: "runtime-snapshot-file",
+      parseFormat: "mcp-tools-list",
+      toolCount: 11,
+    });
+    expect(body.unknownTools as string[]).toContain("place_crypto_order_unknown");
+    expect(body.sampleNames as string[]).toContain("get_accounts");
+    expect(String(body.inputSha256)).toHaveLength(64);
+    expect(body.limitations as string[]).toContain("runtime-snapshot-file (operator provided)");
+
+    const fromJson = await harness.client.callTool({
+      name: "runbook_session_import_tools_list",
+      arguments: {
+        sessionId: "CPS-IMPORT-001",
+        toolsJson: JSON.stringify({ tools: ["get_accounts", "get_portfolio"] }),
+      },
+    });
+    expect(fromJson.isError).not.toBe(true);
+    expect(structured(fromJson)).toMatchObject({
+      ok: true,
+      toolCount: 2,
+      inputSource: "toolsJson",
+      parseFormat: "named-string-array",
+      brokerEffect: false,
+    });
+
+    // Prefer path when both path and toolsJson are provided.
+    const preferPath = await harness.client.callTool({
+      name: "runbook_session_import_tools_list",
+      arguments: {
+        sessionId: "CPS-IMPORT-001",
+        path: SAMPLE_TOOLS_LIST_PATH,
+        toolsJson: JSON.stringify({ tools: ["get_accounts"] }),
+      },
+    });
+    expect(preferPath.isError).not.toBe(true);
+    expect(structured(preferPath)).toMatchObject({
+      inputSource: "path",
+      toolCount: 11,
+      ok: false,
+    });
+
+    const refuseUrl = await harness.client.callTool({
+      name: "runbook_session_import_tools_list",
+      arguments: {
+        sessionId: "CPS-IMPORT-001",
+        path: "https://example.com/tools.json",
+      },
+    });
+    expect(refuseUrl.isError).toBe(true);
+
+    // Active-session resolution when sessionId omitted.
+    await harness.client.callTool({
+      name: "runbook_session_use",
+      arguments: { sessionId: "CPS-IMPORT-001" },
+    });
+    const viaActive = await harness.client.callTool({
+      name: "runbook_session_import_tools_list",
+      arguments: {
+        toolsJson: JSON.stringify(["get_accounts"]),
+      },
+    });
+    expect(viaActive.isError).not.toBe(true);
+    expect(structured(viaActive)).toMatchObject({
+      sessionId: "CPS-IMPORT-001",
+      ok: true,
+      toolCount: 1,
+      parseFormat: "string-array",
+      brokerEffect: false,
+    });
+
+    const got = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-IMPORT-001" },
+    });
+    const session = structured(got).session as { notes?: string[] };
+    expect(session.notes?.some((n) => n.includes("runtime-snapshot-file (operator provided)"))).toBe(
+      true,
+    );
   });
 
   it("creates, pins, checks, attaches, and exports a session", async () => {

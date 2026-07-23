@@ -1,12 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
+import { evaluateProposal } from "@runbook/engine/policy";
 import { policyCheckSchema, riskPolicySchema, tradeProposalSchema } from "@runbook/engine/schema";
+import { charterDigest } from "@runbook/session";
 import { registerOfflineTools, type OfflineToolsOptions } from "./offline-tools.js";
 import { registerRunbookPrompts } from "./prompts.js";
 import { withToolErrors } from "./protocol.js";
 import { registerRunbookResources } from "./resources.js";
 import { RunbookService } from "./service.js";
 import {
+  appendSessionNote,
   resolveSessionId,
   resolveSessionStore,
   withSession,
@@ -148,11 +151,16 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
     {
       title: "Preflight Trade Proposal",
       description:
-        "Record and evaluate a proposed trade against the active local charter. Advisory only: does not place, route, preview, or approve a broker order. Account state fields are caller-supplied. See runbook://docs/assurance.",
+        "Record and evaluate a proposed trade against the active local charter. When a control-plane session is active (sessionId arg, RUNBOOK_SESSION_ID, or active-session.json) and the session has a charter, also evaluates against that session charter digest and notes mismatches. Advisory only: does not place, route, preview, or approve a broker order. Account state fields are caller-supplied. See runbook://docs/assurance and runbook://playbooks/control-plane-session.",
       inputSchema: {
         proposal: tradeProposalSchema,
         actor: z.object(actorShape),
         occurredAt: z.iso.datetime(),
+        sessionId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/)
+          .optional(),
       },
       outputSchema: {
         allowed: z.boolean(),
@@ -161,16 +169,73 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
         proposalHash: z.string(),
         preflightHash: z.string(),
         warning: z.string(),
+        sessionId: z.string().optional(),
+        sessionCharterDigest: z.string().optional(),
+        sessionPolicyAllowed: z.boolean().optional(),
+        sessionCharterBinding: z.enum([
+          "no-session",
+          "no-session-charter",
+          "matched-allowed",
+          "matched-denied",
+          "mismatch-session-denies",
+          "mismatch-session-allows",
+        ]),
+        brokerEffect: z.literal(false),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    withToolErrors(async ({ proposal, actor, occurredAt }) => {
+    withToolErrors(async ({ proposal, actor, occurredAt, sessionId: sessionIdArg }) => {
       const preflight = await service.preflight(proposal, actor, occurredAt);
+      const sessionId = await resolveSessionId(sessionIdArg, options);
+      const store = resolveSessionStore(options);
+
+      let sessionCharterDigest: string | undefined;
+      let sessionPolicyAllowed: boolean | undefined;
+      let sessionCharterBinding:
+        | "no-session"
+        | "no-session-charter"
+        | "matched-allowed"
+        | "matched-denied"
+        | "mismatch-session-denies"
+        | "mismatch-session-allows" = "no-session";
+
+      if (sessionId !== undefined) {
+        const session = await store.read(sessionId);
+        if (session.charter === undefined) {
+          sessionCharterBinding = "no-session-charter";
+        } else {
+          sessionCharterDigest = session.charterDigest ?? charterDigest(session.charter);
+          const sessionEval = evaluateProposal(session.charter, proposal);
+          sessionPolicyAllowed = sessionEval.allowed;
+          if (sessionEval.allowed === preflight.result.allowed) {
+            sessionCharterBinding = sessionEval.allowed ? "matched-allowed" : "matched-denied";
+          } else if (sessionEval.allowed === false && preflight.result.allowed === true) {
+            sessionCharterBinding = "mismatch-session-denies";
+          } else {
+            sessionCharterBinding = "mismatch-session-allows";
+          }
+          await appendSessionNote(
+            store,
+            sessionId,
+            `preflight ${proposal.proposalId}: ledgerAllowed=${preflight.result.allowed} sessionAllowed=${sessionEval.allowed} binding=${sessionCharterBinding}`,
+          );
+        }
+      }
+
       return {
         ...preflight.result,
         proposalHash: preflight.proposalEvent.hash,
         preflightHash: preflight.preflightEvent.hash,
-        warning: "Runbook preflight is advisory. It does not prevent direct use of a broker tool.",
+        warning:
+          "Runbook preflight is advisory. It does not prevent direct use of a broker tool." +
+          (sessionCharterBinding === "mismatch-session-denies"
+            ? " Session charter would DENY this proposal while the experiment ledger charter allowed it — treat as process risk."
+            : ""),
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        ...(sessionCharterDigest !== undefined ? { sessionCharterDigest } : {}),
+        ...(sessionPolicyAllowed !== undefined ? { sessionPolicyAllowed } : {}),
+        sessionCharterBinding,
+        brokerEffect: false as const,
       };
     }),
   );

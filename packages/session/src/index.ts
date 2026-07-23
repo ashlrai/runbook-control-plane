@@ -28,8 +28,15 @@ export {
 
 export {
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
+  MAX_TOOLS_LIST_COUNT,
+  MAX_TOOL_NAME_LENGTH,
+  ToolsListParseError,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
+  parseToolsListJson,
+  parseToolsListJsonText,
+  type ToolsListJsonFormat,
+  type ParsedToolsList,
 } from "./inventory.js";
 
 export { SessionStore, defaultSessionRoot } from "./store.js";

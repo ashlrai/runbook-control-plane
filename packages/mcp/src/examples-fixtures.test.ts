@@ -37,9 +37,23 @@ describe("packages/mcp/examples first-run fixtures", () => {
       "weak-policy.json",
       "elite-policy.json",
       "sample-ledger-events.json",
+      "sample-tools-list.json",
     ]) {
       expect(names.has(required)).toBe(true);
     }
+  });
+
+  it("sample-tools-list.json is MCP tools/list style with one unknown for fail-closed demo", () => {
+    const body = readJson("sample-tools-list.json") as {
+      tools: Array<{ name: string }>;
+    };
+    expect(Array.isArray(body.tools)).toBe(true);
+    expect(body.tools.length).toBeGreaterThanOrEqual(5);
+    const names = body.tools.map((t) => t.name);
+    expect(names).toContain("get_accounts");
+    expect(names).toContain("place_equity_order");
+    expect(names).toContain("place_crypto_order_unknown");
+    expect(sha256File("sample-tools-list.json")).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("weak-policy.json exports WEAK_STARTER and parses as RiskPolicy", () => {

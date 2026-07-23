@@ -7,7 +7,7 @@ import { PROMPT_NAMES } from "./prompts.js";
 import { STATIC_RESOURCE_URIS } from "./resources.js";
 
 export const SERVER_NAME = "runbook" as const;
-export const SERVER_VERSION = "0.3.0" as const;
+export const SERVER_VERSION = "0.3.1" as const;
 
 /** Full closed tool list in stable discovery order. */
 export const TOOL_NAMES = [
@@ -38,6 +38,7 @@ export const TOOL_NAMES = [
   "runbook_session_set_charter",
   "runbook_session_pin_inventory",
   "runbook_session_check_inventory",
+  "runbook_session_import_tools_list",
   "runbook_session_bind_experiment",
   "runbook_session_attach_dossier",
   "runbook_session_record_shadow",
@@ -71,6 +72,7 @@ const OFFLINE_TOOL_NAMES = new Set<string>([
   "runbook_session_set_charter",
   "runbook_session_pin_inventory",
   "runbook_session_check_inventory",
+  "runbook_session_import_tools_list",
   "runbook_session_bind_experiment",
   "runbook_session_attach_dossier",
   "runbook_session_record_shadow",

@@ -8,9 +8,12 @@ import {
   charterDigest,
   createCallerAssertedApproval,
   generateApprovalKeyPair,
+  parseToolsListJson,
+  parseToolsListJsonText,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SessionStore,
   signApprovalIntent,
+  ToolsListParseError,
   verifySignedApprovalIntent,
 } from "./index.js";
 
@@ -98,6 +101,35 @@ describe("@runbook/session", () => {
     );
     expect(warn.ok).toBe(true);
     expect(warn.unknownTools).toHaveLength(1);
+  });
+
+  it("parseToolsListJson accepts MCP tools/list, string-array, and plain array forms", () => {
+    const mcp = parseToolsListJson({
+      tools: [{ name: "get_portfolio" }, { name: "get_accounts" }, { name: "get_accounts" }],
+    });
+    expect(mcp.format).toBe("mcp-tools-list");
+    expect(mcp.toolNames).toEqual(["get_accounts", "get_portfolio"]);
+
+    const named = parseToolsListJson({ tools: ["get_portfolio", "get_accounts"] });
+    expect(named.format).toBe("named-string-array");
+    expect(named.toolNames).toEqual(["get_accounts", "get_portfolio"]);
+
+    const plain = parseToolsListJson(["get_equity_quotes", "get_accounts"]);
+    expect(plain.format).toBe("string-array");
+    expect(plain.toolNames).toEqual(["get_accounts", "get_equity_quotes"]);
+
+    expect(() => parseToolsListJson({ tools: [{ description: "no name" }] })).toThrow(
+      ToolsListParseError,
+    );
+    expect(() => parseToolsListJson({ tools: ["x".repeat(161)] })).toThrow(ToolsListParseError);
+    expect(() => parseToolsListJson({ tools: Array.from({ length: 201 }, (_, i) => `t${i}`) })).toThrow(
+      ToolsListParseError,
+    );
+    expect(() => parseToolsListJsonText("https://example.com/tools.json")).toThrow(ToolsListParseError);
+    expect(parseToolsListJsonText('["get_accounts"]')).toEqual({
+      toolNames: ["get_accounts"],
+      format: "string-array",
+    });
   });
 
   it("signs and verifies device-key approval as local attestation only", () => {

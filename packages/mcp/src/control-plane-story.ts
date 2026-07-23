@@ -13,20 +13,29 @@
  * Process evidence only — not trading performance, capital 0, brokerEffect false.
  */
 
-import { chmod, mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { evaluateProposal } from "@runbook/engine/policy";
 import { FileLedger } from "@runbook/engine/ledger";
 import {
   buildPublicDocsInventoryPin,
+  checkObservedToolsAgainstPin,
+  parseToolsListJsonText,
   SessionStore,
   defaultSessionRoot,
+  charterDigest,
 } from "@runbook/session";
 import { WEAK_STARTER_POLICY, runRecursiveImprovement } from "@runbook/shadow-lab";
 import { RunbookService } from "./service.js";
 import { evaluateAgentProcess } from "./shadow-tools.js";
 import { TOOL_NAMES } from "./surface.js";
 import { writeActiveSession } from "./session-context.js";
+
+const SAMPLE_TOOLS_LIST = fileURLToPath(
+  new URL("../examples/sample-tools-list.json", import.meta.url),
+);
 
 export const CONTROL_PLANE_STORY_SCHEMA = "runbook.control-plane-story.v1" as const;
 
@@ -39,6 +48,9 @@ export type ControlPlaneStoryReceipt = {
   finalHardFalseDenies: number;
   fixedPoint: boolean;
   inventoryToolCount: number;
+  inventoryImportOk: boolean;
+  inventoryUnknownCount: number;
+  preflightSessionBinding: string;
   experimentBound: boolean;
   agentEvalProcessCorrect: boolean;
   packSchemaVersion: string;
@@ -114,6 +126,9 @@ export async function runControlPlaneStory(
     finalHardFalseDenies: -1,
     fixedPoint: false,
     inventoryToolCount: 0,
+    inventoryImportOk: false,
+    inventoryUnknownCount: -1,
+    preflightSessionBinding: "unset",
     experimentBound: false,
     agentEvalProcessCorrect: false,
     packSchemaVersion: "",
@@ -148,6 +163,23 @@ export async function runControlPlaneStory(
     await store.setInventoryPin(sessionId, pin);
     receipt.inventoryToolCount = pin.tools.length;
     if (pin.tools.length < 1) errors.push("inventory-pin-empty");
+
+    // 2b. Import operator tools/list snapshot (local file only) — expect unknown tool fail-closed
+    try {
+      const toolsRaw = await readFile(SAMPLE_TOOLS_LIST, "utf8");
+      const parsed = parseToolsListJsonText(toolsRaw);
+      const check = checkObservedToolsAgainstPin(pin, parsed.toolNames, "fail-closed");
+      receipt.inventoryImportOk = check.ok === false && check.unknownTools.length > 0;
+      receipt.inventoryUnknownCount = check.unknownTools.length;
+      if (check.unknownTools.length < 1) {
+        errors.push("inventory-import-expected-unknown-tool");
+      }
+      if (check.brokerEffect !== false) errors.push("inventory-import-broker-effect");
+    } catch (error) {
+      errors.push(
+        `inventory-import-failed:${error instanceof Error ? error.message : "unknown"}`,
+      );
+    }
 
     // 3. Shadow improve to HFA 0
     const improve = runRecursiveImprovement(WEAK_STARTER_POLICY, maxGenerations);
@@ -187,6 +219,41 @@ export async function runControlPlaneStory(
     const bound = await store.read(sessionId);
     receipt.experimentBound = bound.experimentId === experimentId;
     if (!receipt.experimentBound) errors.push("experiment-not-bound");
+
+    // 5b. Preflight against ledger + session charter binding (advisory dual eval)
+    const cleanProposal = {
+      proposalId: "story-vti-001",
+      experimentId,
+      symbol: "VTI",
+      instrument: "equity" as const,
+      side: "buy" as const,
+      notional: 50,
+      projectedPositionNotional: 50,
+      dailyTradesAfter: 1,
+      currentDrawdownPercent: 0.5,
+      hasThesis: true,
+      hasInvalidation: true,
+      evidenceSourceCount: 2,
+    };
+    const preflight = await service.preflight(cleanProposal, actor, "2026-07-22T20:05:00.000Z");
+    const sessionAfter = await store.read(sessionId);
+    if (sessionAfter.charter === undefined) {
+      errors.push("session-charter-missing-for-preflight");
+      receipt.preflightSessionBinding = "no-session-charter";
+    } else {
+      const sessionAllowed = evaluateProposal(sessionAfter.charter, cleanProposal).allowed;
+      const digest = sessionAfter.charterDigest ?? charterDigest(sessionAfter.charter);
+      if (sessionAllowed === preflight.result.allowed) {
+        receipt.preflightSessionBinding = sessionAllowed ? "matched-allowed" : "matched-denied";
+      } else {
+        receipt.preflightSessionBinding = sessionAllowed
+          ? "mismatch-session-allows"
+          : "mismatch-session-denies";
+        errors.push(`preflight-session-mismatch:${receipt.preflightSessionBinding}`);
+      }
+      if (digest.length !== 64) errors.push("session-charter-digest-invalid");
+      if (!preflight.result.allowed) errors.push("clean-preflight-expected-allowed");
+    }
 
     // 6. agent_eval
     const events = await service.listEvents(experimentId);

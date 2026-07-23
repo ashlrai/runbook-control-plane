@@ -419,6 +419,16 @@ export const TOOL_CONTRACT_JSON = `{
       "notes": "Fail-closed by session.inventoryEnforcement when pin is present."
     },
     {
+      "name": "runbook_session_import_tools_list",
+      "effect": "local-session-tools-list-import-check",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Operator-provided local tools/list JSON (path preferred). O_NOFOLLOW file read ≤1MiB; never network fetch. Source label: runtime-snapshot-file (operator provided). Checks against session pin; appends evidence note only."
+    },
+    {
       "name": "runbook_session_bind_experiment",
       "effect": "local-session-experiment-bind",
       "brokerEffect": false,
@@ -535,6 +545,7 @@ Local **process / evidence** spine shared across MCP, shadow-lab, and dossier at
 | \`runbook_session_set_charter\` | Bind advisory policy + digest |
 | \`runbook_session_pin_inventory\` | Default public-docs pin or custom tool names |
 | \`runbook_session_check_inventory\` | Observed tools vs pin (\`session.inventoryEnforcement\`) |
+| \`runbook_session_import_tools_list\` | Import local tools/list JSON and check vs pin (never network fetch) |
 | \`runbook_session_bind_experiment\` | Bind local ledger experimentId (+ optional head hash) |
 | \`runbook_session_attach_dossier\` | Attach architecture evidence note |
 | \`runbook_session_record_shadow\` | Record hardFalseAllows / hardFalseDenies |
@@ -579,7 +590,7 @@ This playbook freezes the **full control-plane session journey** an ambitious ag
 | Boundary | \`runbook://docs/boundary\`, \`runbook://docs/assurance\` |
 | Equity policy | \`runbook://examples/equity-only-charter-policy\` |
 | Dossier honesty | \`runbook://status/dossier\` |
-| Session tools | \`runbook_session_create\`, \`runbook_session_pin_inventory\`, \`runbook_session_check_inventory\`, \`runbook_session_set_charter\`, \`runbook_session_record_shadow\`, \`runbook_session_bind_experiment\`, \`runbook_session_attach_dossier\`, \`runbook_session_export\`, \`runbook_session_get\` |
+| Session tools | \`runbook_session_create\`, \`runbook_session_pin_inventory\`, \`runbook_session_check_inventory\`, \`runbook_session_import_tools_list\`, \`runbook_session_set_charter\`, \`runbook_session_record_shadow\`, \`runbook_session_bind_experiment\`, \`runbook_session_attach_dossier\`, \`runbook_session_export\`, \`runbook_session_get\` |
 | Shadow | \`runbook_improve_charter\` (optional curriculum first) |
 | Ledger | \`runbook_create_experiment\` |
 | Approval | \`runbook_approval_create_signed\`, \`runbook_approval_verify\` |

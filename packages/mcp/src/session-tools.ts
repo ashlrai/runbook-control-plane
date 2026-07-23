@@ -12,22 +12,32 @@ import {
   generateApprovalKeyPair,
   inventoryPinSchema,
   newId,
+  parseToolsListJsonText,
   signApprovalIntent,
   signedApprovalIntentSchema,
   toolSetSha256FromEntries,
+  ToolsListParseError,
   verifySignedApprovalIntent,
   type InventoryPin,
   type InventoryToolEntry,
 } from "@runbook/session";
 import * as z from "zod/v4";
 import type { OfflineToolsOptions } from "./offline-tools.js";
-import { withToolErrors } from "./protocol.js";
+import { OwnedFileError, ownAbsoluteFile } from "./owned-file.js";
+import { mapServiceError, toolError, toolSuccess, withToolErrors } from "./protocol.js";
 import {
   activeSessionMarkerPath,
+  appendSessionNote,
   resolveDataDir,
+  resolveSessionId,
   resolveSessionStore,
   writeActiveSession,
 } from "./session-context.js";
+
+/** ~1 MiB cap for operator-provided tools/list JSON files. */
+const MAX_TOOLS_LIST_FILE_BYTES = 1 * 1024 * 1024;
+const SAMPLE_TOOL_NAME_COUNT = 12;
+const RUNTIME_SNAPSHOT_FILE_NOTE = "runtime-snapshot-file (operator provided)" as const;
 
 const offlineAnnotations = {
   readOnlyHint: true,
@@ -98,6 +108,8 @@ const sessionIdSchema = z
   .string()
   .trim()
   .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/);
+
+const optionalSessionIdSchema = sessionIdSchema.optional();
 
 const sessionOutputFields = {
   session: z.record(z.string(), z.unknown()),
@@ -378,6 +390,147 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
         limitations: [...SESSION_LIMITATIONS, "fail-closed-on-unknown-tools-when-enforced"],
       };
     }),
+  );
+
+  server.registerTool(
+    "runbook_session_import_tools_list",
+    {
+      title: "Import tools/list JSON Against Session Pin",
+      description:
+        "Load an operator-provided local MCP tools/list JSON (absolute path preferred, or toolsJson string) and check observed tool names against the session inventory pin using session.inventoryEnforcement. Accepts MCP tools/list objects, {tools:[string]}, or a plain string array. Max 200 tools / 160-char names. Uses O_NOFOLLOW owned-file reads (≤1MiB). NEVER fetches URLs. sessionId optional (active session / RUNBOOK_SESSION_ID). Source label: runtime-snapshot-file (operator provided). brokerEffect false.",
+      inputSchema: {
+        sessionId: optionalSessionIdSchema,
+        path: z.string().trim().min(1).max(4_096).optional(),
+        toolsJson: z.string().trim().min(1).max(MAX_TOOLS_LIST_FILE_BYTES).optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.session-import-tools-list.v1"),
+        ok: z.boolean(),
+        enforcement: z.enum(["off", "warn", "fail-closed"]),
+        unknownTools: z.array(z.string()),
+        missingPinnedTools: z.array(z.string()),
+        extraTools: z.array(z.string()),
+        pinToolSetSha256: z.string().nullable(),
+        observedToolSetSha256: z.string(),
+        message: z.string(),
+        sessionId: z.string(),
+        toolCount: z.number().int().nonnegative(),
+        sampleNames: z.array(z.string()),
+        parseFormat: z.enum(["mcp-tools-list", "named-string-array", "string-array"]),
+        inputSource: z.enum(["path", "toolsJson"]),
+        inputSha256: z.string().nullable(),
+        source: z.literal("runtime-snapshot-file"),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+        limitations: z.array(z.string()),
+      },
+      // Appends a local session note only; never mutates pin / broker state.
+      annotations: mutatingAnnotations,
+    },
+    async (input) => {
+      try {
+        const hasPath = input.path !== undefined && input.path.length > 0;
+        const hasJson = input.toolsJson !== undefined && input.toolsJson.length > 0;
+        if (!hasPath && !hasJson) {
+          throw new ToolsListParseError("Provide path or toolsJson for tools/list import.");
+        }
+        // Prefer path when both are supplied (local file over inline string).
+        if (hasPath && /^https?:\/\//i.test(input.path as string)) {
+          throw new ToolsListParseError("tools/list import refuses URL fetch.");
+        }
+        if (!hasPath && hasJson && /^https?:\/\//i.test((input.toolsJson as string).trim())) {
+          throw new ToolsListParseError("tools/list import refuses URL fetch.");
+        }
+
+        let text: string;
+        let inputSource: "path" | "toolsJson";
+        let inputSha256: string | null = null;
+        if (hasPath) {
+          const owned = await ownAbsoluteFile(input.path as string, {
+            maxBytes: MAX_TOOLS_LIST_FILE_BYTES,
+            minBytes: 2,
+          });
+          text = new TextDecoder().decode(owned.bytes);
+          inputSource = "path";
+          inputSha256 = owned.sha256;
+        } else {
+          text = input.toolsJson as string;
+          inputSource = "toolsJson";
+        }
+
+        const parsed = parseToolsListJsonText(text);
+        const sessionId = await resolveSessionId(input.sessionId, options);
+        if (sessionId === undefined) {
+          throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+        }
+
+        const store = getStore(options);
+        const session = await store.read(sessionId);
+        const check = checkObservedToolsAgainstPin(
+          session.inventoryPin,
+          parsed.toolNames,
+          session.inventoryEnforcement,
+        );
+
+        // Evidence note only — does not mutate pin or grant broker permission.
+        await appendSessionNote(
+          store,
+          sessionId,
+          `tools-list import: count=${parsed.toolNames.length} ok=${check.ok} source=${RUNTIME_SNAPSHOT_FILE_NOTE}`,
+        );
+
+        const sampleNames = [...parsed.toolNames].slice(0, SAMPLE_TOOL_NAME_COUNT);
+        const output = {
+          schemaVersion: "runbook.session-import-tools-list.v1" as const,
+          ok: check.ok,
+          enforcement: check.enforcement,
+          unknownTools: check.unknownTools,
+          missingPinnedTools: check.missingPinnedTools,
+          extraTools: check.extraTools,
+          pinToolSetSha256: check.pinToolSetSha256,
+          observedToolSetSha256: check.observedToolSetSha256,
+          message: check.message,
+          sessionId,
+          toolCount: parsed.toolNames.length,
+          sampleNames,
+          parseFormat: parsed.format,
+          inputSource,
+          inputSha256,
+          source: "runtime-snapshot-file" as const,
+          brokerEffect: false as const,
+          compositeScore: false as const,
+          capitalAtRisk: 0 as const,
+          limitations: [
+            ...SESSION_LIMITATIONS,
+            RUNTIME_SNAPSHOT_FILE_NOTE,
+            "no-network-fetch",
+            "fail-closed-on-unknown-tools-when-enforced",
+            "not-broker-authorization",
+          ],
+        };
+        return toolSuccess(output);
+      } catch (error) {
+        if (error instanceof ToolsListParseError) {
+          return toolError("input.invalid", "tools/list JSON is invalid or out of bounds.");
+        }
+        if (error instanceof OwnedFileError) {
+          return mapServiceError(error);
+        }
+        if (error instanceof Error) {
+          if (
+            error.message.startsWith("No sessionId provided") ||
+            error.message === "Invalid sessionId"
+          ) {
+            return toolError(
+              "input.invalid",
+              "No resolvable sessionId (pass sessionId or set active session).",
+            );
+          }
+        }
+        return mapServiceError(error);
+      }
+    },
   );
 
   server.registerTool(

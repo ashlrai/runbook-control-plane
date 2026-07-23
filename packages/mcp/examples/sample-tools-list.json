@@ -1,0 +1,15 @@
+{
+  "tools": [
+    { "name": "get_accounts" },
+    { "name": "get_portfolio" },
+    { "name": "get_equity_quotes" },
+    { "name": "get_equity_orders" },
+    { "name": "get_equity_positions" },
+    { "name": "search" },
+    { "name": "get_watchlists" },
+    { "name": "review_equity_order" },
+    { "name": "place_equity_order" },
+    { "name": "cancel_equity_order" },
+    { "name": "place_crypto_order_unknown" }
+  ]
+}
