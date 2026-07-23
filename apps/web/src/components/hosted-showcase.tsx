@@ -400,7 +400,7 @@ export function HostedShowcase() {
                 Shadow Lab
               </Link>
               <Link className={styles.chipLink} href="/mcp">
-                MCP cockpit (39 tools)
+                MCP cockpit (40 tools)
               </Link>
             </div>
           </div>

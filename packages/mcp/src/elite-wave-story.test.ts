@@ -12,7 +12,7 @@ describe("elite-wave-story", () => {
     expect(result.receipt.controlPlaneSuccess).toBe(true);
     expect(result.receipt.toolCount).toBe(TOOL_NAMES.length);
     expect(result.receipt.surfaceLock.toolCount).toBe(TOOL_NAMES.length);
-    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.1");
+    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.2");
     expect(result.receipt.surfaceLock.hasPlaceOrCancelTools).toBe(false);
     expect(result.receipt.surfaceLock.toolSetSha256).toHaveLength(64);
     expect(result.receipt.processTick.recommendation).toBe("stop");

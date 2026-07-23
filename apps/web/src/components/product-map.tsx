@@ -69,7 +69,7 @@ const productSurfaces = [
   { href: "/control-room", label: "Control Room", detail: "Local charter + real engine preflight tickets" },
   { href: "/shadow-lab", label: "Shadow Process Lab", detail: "Recursive refine · multi-charter tournament · meta-curriculum" },
   { href: "/dossier", label: "Dossier status", detail: "31-case architecture board · not buyer-ready" },
-  { href: "/mcp", label: "MCP cockpit", detail: "Install, 39 tools, golden journey, fixture demos" },
+  { href: "/mcp", label: "MCP cockpit", detail: "Install, 40 tools, golden journey, fixture demos" },
   { href: "/lineage", label: "Lineage atlas", detail: "Multi-capsule graph, offline only" },
   { href: "/trust", label: "Trust center", detail: "Metadata snapshot inspection + limits" },
   { href: "/proof-capsule", label: "Proof capsule", detail: "Portable evidence packaging story" },
@@ -111,6 +111,7 @@ export function ProductMap() {
         <span>NO BROKER CREDENTIALS</span>
         <span>NO COMPOSITE SAFETY SCORE</span>
         <span>HOSTED LAB · BROWSER-LOCAL STATE</span>
+        <span>runbook.ashlr.ai · MCP 0.4.2 · 40 tools</span>
       </div>
 
       <section className={styles.hero} aria-labelledby="product-map-title">

@@ -16,6 +16,7 @@ import {
 import {
   applyChallengeMutation,
   buildCloneChallengeReceipt,
+  buildDualCheckDiff,
   buildInventoryPinPreset,
   buildProcessCapsulePayloads,
   buildPublicDocsInventoryPin,
@@ -30,6 +31,7 @@ import {
   type ChallengeMutationId,
   type InventoryPinPreset,
 } from "@runbook/session";
+import { WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import * as z from "zod/v4";
 import { runDriftSentinel } from "./drift-sentinel.js";
 import type { OfflineToolsOptions } from "./offline-tools.js";
@@ -469,6 +471,74 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
       return {
         ...receipt,
         receipt: jsonSafe(receipt),
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_dual_check_diff",
+    {
+      title: "Dual Check Diff Theater",
+      description:
+        "Evaluate the same proposal under a ledger-side charter (session charter if present as both, or WEAK_STARTER when ledgerPolicySource=weak) vs the active session charter. Returns check-by-check agreement rows for mandate fidelity theater. Process layer only — not capital risk grade, not a hard broker gateway.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+        proposal: tradeProposalSchema,
+        ledgerPolicySource: z.enum(["session", "weak"]).optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.dual-check-diff.v1"),
+        ledgerAllowed: z.boolean(),
+        sessionAllowed: z.boolean().nullable(),
+        processAllowed: z.boolean(),
+        processDeniedBySession: z.boolean(),
+        sessionCharterBinding: z.string(),
+        disagreementCount: z.number().int(),
+        message: z.string(),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        notTradingPerformance: z.literal(true),
+        report: z.record(z.string(), z.unknown()),
+      },
+      annotations: offlineAnnotations,
+    },
+    withToolErrors(async (input) => {
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      if (sessionId === undefined) {
+        throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+      }
+      const store = getStore(options);
+      const session = await store.read(sessionId);
+      if (session.charter === undefined) {
+        throw new Error("Session has no charter for dual check-diff.");
+      }
+      const ledgerSource = input.ledgerPolicySource ?? "weak";
+      const ledgerPolicy =
+        ledgerSource === "session" ? session.charter : WEAK_STARTER_POLICY;
+      const report = buildDualCheckDiff({
+        ledgerPolicy,
+        sessionPolicy: session.charter,
+        proposal: input.proposal,
+        enforcement: session.charterBindingEnforcement ?? "warn",
+      });
+      await appendSessionNote(
+        store,
+        sessionId,
+        `dual_check_diff binding=${report.sessionCharterBinding} disagreements=${report.disagreementCount} ledgerSource=${ledgerSource}`,
+      );
+      return {
+        schemaVersion: "runbook.dual-check-diff.v1" as const,
+        ledgerAllowed: report.ledgerAllowed,
+        sessionAllowed: report.sessionAllowed,
+        processAllowed: report.processAllowed,
+        processDeniedBySession: report.processDeniedBySession,
+        sessionCharterBinding: report.sessionCharterBinding,
+        disagreementCount: report.disagreementCount,
+        message: report.message,
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        notTradingPerformance: true as const,
+        report: jsonSafe(report),
       };
     }),
   );

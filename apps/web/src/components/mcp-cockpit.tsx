@@ -305,7 +305,7 @@ export function McpCockpit() {
             <div className={styles.panelHead}>
               <p className={styles.eyebrow}>Full tool inventory · {MCP_TOOL_COUNT} tools</p>
               <h2 id="tools-title">
-                1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 6 elite · broker effect: none
+                1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 7 elite · broker effect: none
               </h2>
             </div>
             <p

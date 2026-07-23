@@ -59,7 +59,7 @@ describe("elite wave MCP tools", () => {
     await rm(harness.directory, { recursive: true, force: true });
   });
 
-  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.1", async () => {
+  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.2", async () => {
     const result = await harness.client.callTool({
       name: "runbook_surface_lock_receipt",
       arguments: {},
@@ -69,7 +69,7 @@ describe("elite wave MCP tools", () => {
     expect(body).toMatchObject({
       schemaVersion: "runbook.surface-lock-receipt.v1",
       serverName: "runbook",
-      serverVersion: "0.4.1",
+      serverVersion: "0.4.2",
       toolCount: TOOL_NAMES.length,
       hasPlaceOrCancelTools: false,
       openWorldHint: false,
@@ -78,7 +78,7 @@ describe("elite wave MCP tools", () => {
     });
     expect(body.brokerExecutionTools).toEqual([]);
     expect(String(body.toolSetSha256)).toHaveLength(64);
-    expect(TOOL_NAMES.length).toBe(39);
+    expect(TOOL_NAMES.length).toBe(40);
   });
 
   it("process_tick stop on unknown tool with fail-closed pin", async () => {
@@ -235,4 +235,51 @@ describe("elite wave MCP tools", () => {
       true,
     );
   });
+
+  it("dual_check_diff reports session vs weak ledger disagreement on options", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-DUAL-DIFF",
+        label: "Dual check-diff",
+        policy: elitePolicy,
+        charterBindingEnforcement: "fail-closed",
+      },
+    });
+
+    const diff = await harness.client.callTool({
+      name: "runbook_dual_check_diff",
+      arguments: {
+        sessionId: "CPS-DUAL-DIFF",
+        ledgerPolicySource: "weak",
+        proposal: {
+          proposalId: "dual-opt",
+          experimentId: "RUN-DUAL",
+          symbol: "SPY",
+          instrument: "option",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 0.5,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 2,
+        },
+      },
+    });
+    expect(diff.isError).not.toBe(true);
+    const body = structured(diff);
+    expect(body).toMatchObject({
+      schemaVersion: "runbook.dual-check-diff.v1",
+      processDeniedBySession: true,
+      processAllowed: false,
+      brokerEffect: false,
+      compositeScore: false,
+      notTradingPerformance: true,
+    });
+    expect(Number(body.disagreementCount)).toBeGreaterThanOrEqual(1);
+    expect(String(body.sessionCharterBinding)).toMatch(/mismatch|denied/);
+  });
 });
+

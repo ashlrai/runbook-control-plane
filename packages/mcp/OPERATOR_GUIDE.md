@@ -2,7 +2,7 @@
 
 **Audience:** Mason (builder/operator) and coding agents using the Runbook MCP companion.  
 **Checkout truth date:** 2026-07-23  
-**Server surface:** `runbook` MCP `0.4.1` · closed **39** tools · `brokerExecutionTools: []`
+**Server surface:** `runbook` MCP `0.4.2` · closed **40** tools · `brokerExecutionTools: []`
 
 This guide is operational, not marketing. Prefer exact package paths and tool names over slogans. When package docs and UI copy diverge, package sources and `packages/mcp/src/surface.ts` win.
 
@@ -191,7 +191,7 @@ Key URLs immediately:
 | --- | --- |
 | `/` | Product map — three builder doors |
 | `/shadow-lab` | Curriculum / refine / tournament / meta theater |
-| `/mcp` | 39-tool inventory, install copy, golden journey checklist |
+| `/mcp` | 40-tool inventory, install copy, golden journey checklist |
 | `/session` | Control-plane session UI (charter · inventory pin · shadow · dossier) |
 | `/dossier` | Honest V2 case board |
 | `/control-room` | Live engine preflight on synthetic proposals |
@@ -221,7 +221,7 @@ Start a **new** agent task after install so tools, resources, and prompts redisc
 
 **First agent moves:**
 
-1. `runbook_list_surface` — confirm 39 tools, empty `brokerExecutionTools`.
+1. `runbook_list_surface` — confirm 40 tools, empty `brokerExecutionTools`.
 2. Read `runbook://docs/boundary` and `runbook://docs/assurance`.
 3. Prompt `runbook_shadow_pilot` or CLI `node packages/mcp/dist/cli.js golden-journey`.
 4. For elite loop: prompt `runbook_elite_recursive_loop` or `pnpm demo:elite`.
@@ -231,7 +231,7 @@ Start a **new** agent task after install so tools, resources, and prompts redisc
 
 ## 4. MCP tool catalog
 
-Server: `runbook` / `0.4.1`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **39**).  
+Server: `runbook` / `0.4.2`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **40**).  
 All tools: `openWorldHint: false`, no broker side effects. Closed inventory — do not invent tools.  
 Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session.
 

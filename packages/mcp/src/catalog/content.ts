@@ -157,7 +157,7 @@ export const ASSURANCE_JSON = `{
 export const TOOL_CONTRACT_JSON = `{
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.1",
+  "serverVersion": "0.4.2",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [

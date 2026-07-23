@@ -1,7 +1,7 @@
 {
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.1",
+  "serverVersion": "0.4.2",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -382,6 +382,16 @@
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "One-rule charter fork into a child session. Process experiment only — not safer strategy or returns."
+    },
+    {
+      "name": "runbook_dual_check_diff",
+      "effect": "dual-check-diff-theater",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "process-observation-only",
+      "openWorldHint": false,
+      "notes": "Check-by-check ledger vs session charter. Mandate fidelity theater — not capital risk grade."
     }
   ],
   "discoveryResources": [
