@@ -63,3 +63,6 @@ jobs:
 
       - name: Run elite journey goldens
         run: pnpm test:elite-journey
+
+      - name: Run elite-wave demo
+        run: pnpm demo:elite-wave

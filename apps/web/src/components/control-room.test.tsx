@@ -149,5 +149,15 @@ describe("Control Room", () => {
       expect(diff.querySelector("table")).toBeTruthy();
       expect(diff.textContent).toMatch(/both-pass|both-fail|ledger-only|session-only|missing/);
     });
+
+    // Dual-eval with bound session also records a process tick (inventory N/A → ok).
+    await waitFor(() => {
+      const ticks = browserSessionStore.read(session.sessionId).processTicks;
+      expect(ticks.length).toBeGreaterThanOrEqual(1);
+      const last = ticks[ticks.length - 1]!;
+      expect(last.inventoryOk).toBe(true);
+      expect(["proceed", "warn", "stop"]).toContain(last.recommendation);
+      expect(last.message).toMatch(/control-room dual-eval/i);
+    });
   });
 });

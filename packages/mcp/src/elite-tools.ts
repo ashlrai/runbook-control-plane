@@ -1,7 +1,7 @@
 /**
- * Elite wave tools: surface lock, process tick, list process ticks, operator scenario
- * eval, pack import, process capsule seal, drift sentinel, clone-challenge, dual
- * check-diff, gateway quorum demo.
+ * Elite wave tools: surface lock, process tick, list process ticks, process health,
+ * operator scenario eval, pack import, process capsule seal, drift sentinel,
+ * clone-challenge, dual check-diff, gateway quorum demo.
  * Process evidence only — not trading performance, not hard broker gateway.
  */
 
@@ -20,6 +20,7 @@ import {
   buildDualCheckDiff,
   buildInventoryPinPreset,
   buildProcessCapsulePayloads,
+  buildProcessHealthReport,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   parseSessionEvidencePack,
@@ -248,6 +249,79 @@ export function registerEliteTools(server: McpServer, options?: OfflineToolsOpti
         brokerEffect: false as const,
         compositeScore: false as const,
         capitalAtRisk: 0 as const,
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_session_process_health",
+    {
+      title: "Session Process Health",
+      description:
+        "Aggregate multi-axis process-quality health from a control-plane session (tick counts, processClean, shadow HFA/HFD when present). Process observation only — not a composite safety grade, not trading performance, not a hard broker gateway. brokerEffect false.",
+      inputSchema: {
+        sessionId: sessionIdSchema.optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.process-health.v1"),
+        sessionId: z.string(),
+        tickCount: z.number().int().nonnegative(),
+        proceedCount: z.number().int().nonnegative(),
+        warnCount: z.number().int().nonnegative(),
+        stopCount: z.number().int().nonnegative(),
+        lastRecommendation: z.enum(["proceed", "warn", "stop"]).nullable(),
+        lastSessionCharterBinding: z.string().nullable(),
+        inventoryUnknownEver: z.array(z.string()),
+        lastShadowHardFalseAllows: z.number().int().nullable(),
+        lastShadowHardFalseDenies: z.number().int().nullable(),
+        shadowGenerationCount: z.number().int().nonnegative(),
+        hasCharter: z.boolean(),
+        hasInventoryPin: z.boolean(),
+        charterBindingEnforcement: z.string(),
+        inventoryEnforcement: z.string(),
+        processClean: z.boolean(),
+        message: z.string(),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+        notTradingPerformance: z.literal(true),
+        limitations: z.array(z.string()),
+        report: z.record(z.string(), z.unknown()),
+      },
+      annotations: offlineAnnotations,
+    },
+    withToolErrors(async (input) => {
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      if (sessionId === undefined) {
+        throw new Error("No sessionId provided and no active session marker or RUNBOOK_SESSION_ID.");
+      }
+      const session = await getStore(options).read(sessionId);
+      const report = buildProcessHealthReport(session);
+      return {
+        schemaVersion: "runbook.process-health.v1" as const,
+        sessionId: report.sessionId,
+        tickCount: report.tickCount,
+        proceedCount: report.proceedCount,
+        warnCount: report.warnCount,
+        stopCount: report.stopCount,
+        lastRecommendation: report.lastRecommendation,
+        lastSessionCharterBinding: report.lastSessionCharterBinding,
+        inventoryUnknownEver: [...report.inventoryUnknownEver],
+        lastShadowHardFalseAllows: report.lastShadowHardFalseAllows,
+        lastShadowHardFalseDenies: report.lastShadowHardFalseDenies,
+        shadowGenerationCount: report.shadowGenerationCount,
+        hasCharter: report.hasCharter,
+        hasInventoryPin: report.hasInventoryPin,
+        charterBindingEnforcement: report.charterBindingEnforcement,
+        inventoryEnforcement: report.inventoryEnforcement,
+        processClean: report.processClean,
+        message: report.message,
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        capitalAtRisk: 0 as const,
+        notTradingPerformance: true as const,
+        limitations: [...report.limitations],
+        report: jsonSafe(report),
       };
     }),
   );

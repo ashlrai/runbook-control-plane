@@ -1,17 +1,33 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HostedShowcase } from "./hosted-showcase";
 import { BROWSER_SESSION_STORAGE_KEY } from "../lib/control-plane-session";
+
+const searchParamsState = { autorun: null as string | null, auto: null as string | null };
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => ({
+    get: (key: string) => {
+      if (key === "autorun") return searchParamsState.autorun;
+      if (key === "auto") return searchParamsState.auto;
+      return null;
+    },
+  }),
+}));
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  searchParamsState.autorun = null;
+  searchParamsState.auto = null;
 });
 
 beforeEach(() => {
   localStorage.clear();
+  searchParamsState.autorun = null;
+  searchParamsState.auto = null;
 });
 
 describe("Hosted showcase", () => {
@@ -53,8 +69,28 @@ describe("Hosted showcase", () => {
       expect(hrefs.some((h) => h?.startsWith("/control-room?sessionId="))).toBe(true);
       expect(screen.getByRole("link", { name: /Download process claims/i })).toBeTruthy();
       const surfaceNote = screen.getByLabelText("Surface version after success").textContent ?? "";
-      expect(surfaceNote).toMatch(/v0\.4\.4/);
-      expect(surfaceNote).toMatch(/44 tools/);
+      expect(surfaceNote).toMatch(/v0\.4\.5/);
+      expect(surfaceNote).toMatch(/45 tools/);
+    },
+    35_000,
+  );
+
+  it(
+    "autoruns the story once when autorun=1",
+    async () => {
+      searchParamsState.autorun = "1";
+      render(<HostedShowcase />);
+
+      await waitFor(
+        () => {
+          const receipt = screen.getByLabelText("Showcase receipt JSON").textContent ?? "";
+          expect(receipt).toContain("runbook.hosted-showcase.v1");
+          expect(receipt).toContain('"success": true');
+        },
+        { timeout: 30_000 },
+      );
+
+      expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain("Hosted showcase");
     },
     35_000,
   );

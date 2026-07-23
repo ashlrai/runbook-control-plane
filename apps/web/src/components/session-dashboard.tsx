@@ -32,6 +32,10 @@ import {
   CHALLENGE_MUTATIONS,
   type ChallengeMutationId,
 } from "@runbook/session/clone-challenge";
+import {
+  buildProcessHealthReport,
+  type ProcessHealthReport,
+} from "@runbook/session/process-health";
 import { BrandMark } from "./brand-mark";
 import {
   downloadSealedProcessCapsule,
@@ -64,6 +68,19 @@ import styles from "./session-dashboard.module.css";
 function shortDigest(value: string | undefined): string {
   if (!value) return "—";
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
+}
+
+/** Parse parent session id from clone-challenge notes (`parent=` or `parentSessionId=`). */
+function parseChallengeParentId(session: ControlPlaneSession): string | null {
+  if (!session.label.includes("Challenge")) return null;
+  for (const note of session.notes ?? []) {
+    if (!note.includes("parent")) continue;
+    const match =
+      note.match(/\bparent=([A-Za-z0-9][A-Za-z0-9_-]{0,119})\b/) ??
+      note.match(/\bparentSessionId=([A-Za-z0-9][A-Za-z0-9_-]{0,119})\b/);
+    if (match?.[1]) return match[1];
+  }
+  return null;
 }
 
 export function SessionDashboard() {
@@ -117,6 +134,23 @@ export function SessionDashboard() {
     () => (selected ? shadowTrendFromSession(selected) : []),
     [selected],
   );
+
+  const processHealth = useMemo(
+    (): ProcessHealthReport | null =>
+      selected ? buildProcessHealthReport(selected) : null,
+    [selected],
+  );
+
+  const challengeParent = useMemo(() => {
+    if (!selected) return null;
+    const parentId = parseChallengeParentId(selected);
+    if (!parentId) return null;
+    try {
+      return browserSessionStore.read(parentId);
+    } catch {
+      return null;
+    }
+  }, [selected, sessions]);
 
   const createSession = useCallback(async () => {
     setBusy(true);
@@ -361,7 +395,7 @@ export function SessionDashboard() {
         });
 
         const digestNote =
-          `clone-challenge parentSessionId=${parent.sessionId} ` +
+          `clone-challenge parent=${parent.sessionId} parentSessionId=${parent.sessionId} ` +
           `parentCharterDigest=${parentDigest ?? "none"} mutation=${mutationId} · ` +
           `process fork only — not safer strategy, not returns`;
         await browserSessionStore.update(child.sessionId, (s) => ({
@@ -822,6 +856,157 @@ export function SessionDashboard() {
                   Verify downloads at <Link href="/verify">/verify</Link>.
                 </p>
               </div>
+
+              {processHealth ? (
+                <div className={styles.panel} aria-label="Process health">
+                  <div className={styles.panelHead}>
+                    <div>
+                      <p className={styles.eyebrow}>Process observation · multi-axis only</p>
+                      <h2>Process health</h2>
+                    </div>
+                    <span
+                      className={styles.healthChip}
+                      data-clean={processHealth.processClean ? "true" : "false"}
+                      aria-label="processClean"
+                    >
+                      processClean={String(processHealth.processClean)}
+                    </span>
+                  </div>
+                  <div className={styles.sectionBody}>
+                    <p>
+                      Multi-axis process observation from ticks + shadow metrics —{" "}
+                      <strong>not</strong> a composite safety grade, not trading performance, not a
+                      hard broker gateway.
+                    </p>
+                    <div
+                      className={styles.metrics}
+                      style={{ padding: 0 }}
+                      aria-label="Process health metrics"
+                    >
+                      <div className={styles.metric}>
+                        <span>Tick counts</span>
+                        <strong>
+                          {processHealth.tickCount} total · proceed={processHealth.proceedCount} ·
+                          warn={processHealth.warnCount} · stop={processHealth.stopCount}
+                        </strong>
+                        <em>supervisor history</em>
+                      </div>
+                      <div className={styles.metric}>
+                        <span>Last recommendation</span>
+                        <strong data-recommendation={processHealth.lastRecommendation ?? "none"}>
+                          {processHealth.lastRecommendation ?? "—"}
+                        </strong>
+                        <em>
+                          {processHealth.lastSessionCharterBinding
+                            ? `binding=${processHealth.lastSessionCharterBinding}`
+                            : "no ticks yet"}
+                        </em>
+                      </div>
+                      <div className={styles.metric}>
+                        <span>Shadow HFA / HFD</span>
+                        <strong>
+                          HFA {processHealth.lastShadowHardFalseAllows ?? "—"} · HFD{" "}
+                          {processHealth.lastShadowHardFalseDenies ?? "—"}
+                        </strong>
+                        <em>{processHealth.shadowGenerationCount} generation(s)</em>
+                      </div>
+                      <div className={styles.metric}>
+                        <span>Charter / inventory</span>
+                        <strong>
+                          charter={processHealth.hasCharter ? "yes" : "no"} · pin=
+                          {processHealth.hasInventoryPin ? "yes" : "no"}
+                        </strong>
+                        <em>
+                          binding={processHealth.charterBindingEnforcement} · inventory=
+                          {processHealth.inventoryEnforcement}
+                        </em>
+                      </div>
+                    </div>
+                    <div
+                      className={styles.checkResult}
+                      data-ok={processHealth.processClean}
+                      aria-live="polite"
+                    >
+                      <strong>
+                        {processHealth.processClean ? "PROCESS CLEAN" : "PROCESS OBSERVED"}
+                      </strong>
+                      <span>{processHealth.message}</span>
+                      <span>
+                        compositeScore=false · brokerEffect=false · notTradingPerformance=true ·
+                        multi-axis only
+                      </span>
+                      {processHealth.inventoryUnknownEver.length > 0 ? (
+                        <code className={styles.mono}>
+                          unknown ever: {processHealth.inventoryUnknownEver.join(", ")}
+                        </code>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {challengeParent && selected ? (
+                <div className={styles.panel} aria-label="Challenge compare">
+                  <div className={styles.panelHead}>
+                    <div>
+                      <p className={styles.eyebrow}>Clone lineage · process fork</p>
+                      <h2>Challenge compare</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.ghostBtn}
+                      onClick={() => {
+                        setSelectedId(challengeParent.sessionId);
+                        setInventoryCheck(null);
+                        setToolsListImport(null);
+                        setDualEval(null);
+                      }}
+                      aria-label="Select parent session"
+                    >
+                      <Link2 size={14} aria-hidden="true" />
+                      Select parent
+                    </button>
+                  </div>
+                  <div className={styles.sectionBody}>
+                    <p>
+                      Child vs parent process snapshot. Digest binding only — not a safer strategy
+                      claim and not returns.
+                    </p>
+                    <div className={styles.compareGrid} role="group" aria-label="Challenge side-by-side">
+                      <div className={styles.compareCol} data-role="child">
+                        <strong>Child (selected)</strong>
+                        <code>{selected.sessionId}</code>
+                        <span>
+                          charterDigest={shortDigest(selected.charterDigest)}
+                        </span>
+                        <span>
+                          HFA {selected.lastShadowHardFalseAllows ?? "—"} · HFD{" "}
+                          {selected.lastShadowHardFalseDenies ?? "—"}
+                        </span>
+                        <span>
+                          processClean=
+                          {String(buildProcessHealthReport(selected).processClean)}
+                        </span>
+                      </div>
+                      <div className={styles.compareCol} data-role="parent">
+                        <strong>Parent</strong>
+                        <code>{challengeParent.sessionId}</code>
+                        <span>
+                          charterDigest={shortDigest(challengeParent.charterDigest)}
+                        </span>
+                        <span>
+                          HFA {challengeParent.lastShadowHardFalseAllows ?? "—"} · HFD{" "}
+                          {challengeParent.lastShadowHardFalseDenies ?? "—"}
+                        </span>
+                        <span>
+                          processClean=
+                          {String(buildProcessHealthReport(challengeParent).processClean)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className={styles.panel} aria-label="Process ticks">
                 <div className={styles.panelHead}>

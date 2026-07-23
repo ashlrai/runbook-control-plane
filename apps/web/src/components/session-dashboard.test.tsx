@@ -230,6 +230,79 @@ describe("Session dashboard", () => {
     expect(browserSessionStore.read(sessionId).charterBindingEnforcement).toBe("fail-closed");
   });
 
+  it("shows process health panel multi-axis axes without composite grade", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "elite" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Process health demo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Process health demo/i })).toBeTruthy();
+    });
+
+    const health = screen.getByLabelText("Process health");
+    expect(health).toBeTruthy();
+    expect(health.textContent).toMatch(/processClean=/i);
+    expect(health.textContent).toMatch(/Tick counts|proceed=/i);
+    expect(health.textContent).toMatch(/Last recommendation/i);
+    expect(health.textContent).toMatch(/Shadow HFA/i);
+    expect(health.textContent).toMatch(/multi-axis only|not a composite safety grade/i);
+    expect(health.textContent).toMatch(/compositeScore=false/);
+    expect(health.textContent).not.toMatch(/100\/100|safety score:|agent certified/i);
+
+    // After a stop tick, processClean should be false and last recommendation stop.
+    fireEvent.click(screen.getByRole("button", { name: /Pin public-docs inventory/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Pinned public-docs inventory/i)).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Run sample supervisor tick/i }));
+    await waitFor(() => {
+      const panel = screen.getByLabelText("Process health");
+      expect(panel.textContent).toMatch(/processClean=false/i);
+      expect(panel.textContent).toMatch(/last=stop|stop=/i);
+    });
+  });
+
+  it("shows challenge compare side-by-side after Deny GME fork", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "elite" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Compare parent" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Compare parent/i })).toBeTruthy();
+    });
+
+    const parentId = browserSessionStore.list()[0]!.sessionId;
+    fireEvent.click(screen.getByRole("button", { name: /Deny GME/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Challenge compare")).toBeTruthy();
+    });
+
+    const compare = screen.getByLabelText("Challenge side-by-side");
+    expect(compare.textContent).toMatch(/charterDigest=/);
+    expect(compare.textContent).toMatch(/processClean=/);
+    expect(compare.textContent).toMatch(/HFA/);
+    expect(compare.textContent).toContain(parentId);
+
+    fireEvent.click(screen.getByRole("button", { name: /Select parent session/i }));
+    await waitFor(() => {
+      const parentOption = screen.getByRole("option", { name: /Compare parent/i });
+      expect(parentOption.getAttribute("aria-selected")).toBe("true");
+    });
+  });
+
   it("runs sample supervisor tick and shows process ticks history with stop recommendation", async () => {
     render(<SessionDashboard />);
 

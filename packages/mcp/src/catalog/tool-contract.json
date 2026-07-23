@@ -1,7 +1,7 @@
 {
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.4",
+  "serverVersion": "0.4.5",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -427,6 +427,16 @@
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "Returns last 64 process_tick summaries for a session. Process evidence only."
+    },
+    {
+      "name": "runbook_session_process_health",
+      "effect": "aggregate-session-process-health",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "process-observation-only",
+      "openWorldHint": false,
+      "notes": "Multi-axis process health (tick counts, processClean, shadow HFA/HFD). Not a composite safety grade."
     },
     {
       "name": "runbook_operator_scenario_eval",

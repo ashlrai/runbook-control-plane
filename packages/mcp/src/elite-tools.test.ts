@@ -59,7 +59,7 @@ describe("elite wave MCP tools", () => {
     await rm(harness.directory, { recursive: true, force: true });
   });
 
-  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.4", async () => {
+  it("surface lock receipt toolCount matches TOOL_NAMES length, hasPlaceOrCancel false, version 0.4.5", async () => {
     const result = await harness.client.callTool({
       name: "runbook_surface_lock_receipt",
       arguments: {},
@@ -69,7 +69,7 @@ describe("elite wave MCP tools", () => {
     expect(body).toMatchObject({
       schemaVersion: "runbook.surface-lock-receipt.v1",
       serverName: "runbook",
-      serverVersion: "0.4.4",
+      serverVersion: "0.4.5",
       toolCount: TOOL_NAMES.length,
       hasPlaceOrCancelTools: false,
       openWorldHint: false,
@@ -78,11 +78,12 @@ describe("elite wave MCP tools", () => {
     });
     expect(body.brokerExecutionTools).toEqual([]);
     expect(String(body.toolSetSha256)).toHaveLength(64);
-    expect(TOOL_NAMES.length).toBe(44);
+    expect(TOOL_NAMES.length).toBe(45);
     expect(TOOL_NAMES).toContain("runbook_session_attach_surface_lock");
     expect(TOOL_NAMES).toContain("runbook_gateway_quorum_demo");
     expect(TOOL_NAMES).toContain("runbook_session_list_process_ticks");
     expect(TOOL_NAMES).toContain("runbook_operator_scenario_eval");
+    expect(TOOL_NAMES).toContain("runbook_session_process_health");
   });
 
   it("attach_surface_lock attaches operator-note with toolSetSha256 evidenceRef", async () => {
@@ -112,7 +113,7 @@ describe("elite wave MCP tools", () => {
       schemaVersion: "runbook.session-attach-surface-lock.v1",
       sessionId: "CPS-ATTACH-LOCK-001",
       toolCount: TOOL_NAMES.length,
-      serverVersion: "0.4.4",
+      serverVersion: "0.4.5",
       toolSetSha256,
       brokerEffect: false,
       compositeScore: false,
@@ -142,7 +143,7 @@ describe("elite wave MCP tools", () => {
     expect(note?.kind).toBe("operator-note");
     expect(note?.evidenceRef).toBe(toolSetSha256);
     expect(note?.summary).toContain(`toolCount=${TOOL_NAMES.length}`);
-    expect(note?.summary).toContain("version=0.4.4");
+    expect(note?.summary).toContain("version=0.4.5");
     expect(note?.summary).toContain(toolSetSha256);
     expect(session.notes?.some((n) => n.includes("attach_surface_lock"))).toBe(true);
   });
@@ -221,6 +222,30 @@ describe("elite wave MCP tools", () => {
     };
     expect(session.processTicks).toHaveLength(1);
     expect(session.notes?.some((n) => n.includes("process_tick"))).toBe(true);
+
+    const health = await harness.client.callTool({
+      name: "runbook_session_process_health",
+      arguments: { sessionId: "CPS-TICK-001" },
+    });
+    expect(health.isError).not.toBe(true);
+    const healthBody = structured(health);
+    expect(healthBody).toMatchObject({
+      schemaVersion: "runbook.process-health.v1",
+      sessionId: "CPS-TICK-001",
+      processClean: false,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+      notTradingPerformance: true,
+    });
+    expect(Number(healthBody.stopCount)).toBeGreaterThanOrEqual(1);
+    expect(Number(healthBody.tickCount)).toBeGreaterThanOrEqual(1);
+    expect(healthBody.processClean).toBe(false);
+    expect(healthBody.report).toMatchObject({
+      schemaVersion: "runbook.process-health.v1",
+      stopCount: healthBody.stopCount,
+      processClean: false,
+    });
   });
 
   it("operator_scenario_eval reports hardFalseAllows for weak policy", async () => {

@@ -18,15 +18,15 @@ import {
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 describe("MCP cockpit catalog data", () => {
-  it("lists all 44 tools with brokerEffect-free lanes", () => {
-    expect(MCP_TOOL_COUNT).toBe(44);
-    expect(MCP_TOOLS).toHaveLength(44);
+  it("lists all 45 tools with brokerEffect-free lanes", () => {
+    expect(MCP_TOOL_COUNT).toBe(45);
+    expect(MCP_TOOLS).toHaveLength(45);
     expect(MCP_TOOLS.filter((t) => t.lane === "discovery")).toHaveLength(1);
     expect(MCP_TOOLS.filter((t) => t.lane === "ledger")).toHaveLength(6);
     expect(MCP_TOOLS.filter((t) => t.lane === "offline")).toHaveLength(7);
     expect(MCP_TOOLS.filter((t) => t.lane === "shadow")).toHaveLength(6);
     expect(MCP_TOOLS.filter((t) => t.lane === "session")).toHaveLength(13);
-    expect(MCP_TOOLS.filter((t) => t.lane === "elite")).toHaveLength(11);
+    expect(MCP_TOOLS.filter((t) => t.lane === "elite")).toHaveLength(12);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_list_surface")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_diff_capabilities")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_pilot_doctor")).toBe(true);
@@ -70,18 +70,18 @@ describe("MCP cockpit catalog data", () => {
     }
   });
 
-  it("exposes static surface lock for server 0.4.4 / 44 tools / attests Runbook only", () => {
-    expect(MCP_SERVER_VERSION).toBe("0.4.4");
-    expect(MCP_SURFACE_LOCK.serverVersion).toBe("0.4.4");
-    expect(MCP_SURFACE_LOCK.toolCount).toBe(44);
+  it("exposes static surface lock for server 0.4.5 / 45 tools / attests Runbook only", () => {
+    expect(MCP_SERVER_VERSION).toBe("0.4.5");
+    expect(MCP_SURFACE_LOCK.serverVersion).toBe("0.4.5");
+    expect(MCP_SURFACE_LOCK.toolCount).toBe(45);
     expect(MCP_SURFACE_LOCK.brokerExecutionTools).toEqual([]);
     expect(MCP_SURFACE_LOCK.openWorldHint).toBe(false);
     expect(MCP_SURFACE_LOCK.attests).toBe("Runbook only");
     expect(MCP_SURFACE_LOCK.brokerEffect).toBe(false);
     expect(MCP_SURFACE_LOCK.compositeScore).toBe(false);
     const summary = formatSurfaceLockSummary();
-    expect(summary).toContain("serverVersion: 0.4.4");
-    expect(summary).toContain("toolCount: 44");
+    expect(summary).toContain("serverVersion: 0.4.5");
+    expect(summary).toContain("toolCount: 45");
     expect(summary).toContain("brokerExecutionTools: []");
     expect(summary).toContain("openWorldHint: false");
     expect(summary).toContain("attests: Runbook only");

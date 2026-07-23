@@ -87,6 +87,11 @@ export {
 } from "./check-diff.js";
 
 export {
+  buildProcessHealthReport,
+  type ProcessHealthReport,
+} from "./process-health.js";
+
+export {
   generateApprovalKeyPair,
   fingerprintSpki,
   canonicalApprovalPayload,

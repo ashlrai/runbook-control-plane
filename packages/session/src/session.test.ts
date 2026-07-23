@@ -8,6 +8,7 @@ import {
   buildDualCheckDiff,
   buildInventoryPinPreset,
   buildProcessCapsulePayloads,
+  buildProcessHealthReport,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   charterDigest,
@@ -488,5 +489,109 @@ describe("@runbook/session", () => {
     expect(report.brokerEffect).toBe(false);
     expect(report.compositeScore).toBe(false);
     expect(report.notTradingPerformance).toBe(true);
+  });
+
+  it("buildProcessHealthReport: empty session processClean false (no pin)", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-health-empty-"));
+    const store = new SessionStore({ rootDir: dir });
+    const session = await store.create({
+      sessionId: "CPS-HEALTH-EMPTY",
+      label: "Process health empty",
+    });
+
+    const report = buildProcessHealthReport(session);
+    expect(report.schemaVersion).toBe("runbook.process-health.v1");
+    expect(report.sessionId).toBe("CPS-HEALTH-EMPTY");
+    expect(report.hasCharter).toBe(false);
+    expect(report.hasInventoryPin).toBe(false);
+    expect(report.tickCount).toBe(0);
+    expect(report.stopCount).toBe(0);
+    expect(report.processClean).toBe(false);
+    expect(report.compositeScore).toBe(false);
+    expect(report.brokerEffect).toBe(false);
+    expect(report.capitalAtRisk).toBe(0);
+    expect(report.notTradingPerformance).toBe(true);
+    expect(report.message).toMatch(/processClean=false/);
+  });
+
+  it("buildProcessHealthReport: pin + charter + HFA 0 shadow + no stop ticks → processClean true", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-health-clean-"));
+    const store = new SessionStore({ rootDir: dir });
+    await store.create({
+      sessionId: "CPS-HEALTH-CLEAN",
+      label: "Process health clean",
+      charter: elitePolicy,
+    });
+    const pin = buildPublicDocsInventoryPin({ createdAt: "2026-07-23T00:00:00.000Z" });
+    await store.setInventoryPin("CPS-HEALTH-CLEAN", pin);
+    await store.recordShadowGeneration("CPS-HEALTH-CLEAN", {
+      generation: 1,
+      hardFalseAllows: 0,
+      hardFalseDenies: 0,
+      recordedAt: "2026-07-23T00:01:00.000Z",
+    });
+    await store.recordProcessTick("CPS-HEALTH-CLEAN", {
+      recommendation: "proceed",
+      inventoryOk: true,
+      inventoryUnknownTools: [],
+      sessionCharterBinding: "match",
+      processDeniedBySession: false,
+      observedToolCount: 1,
+      message: "Inventory within pin.",
+      recordedAt: "2026-07-23T00:02:00.000Z",
+    });
+
+    const session = await store.read("CPS-HEALTH-CLEAN");
+    const report = buildProcessHealthReport(session);
+    expect(report.hasCharter).toBe(true);
+    expect(report.hasInventoryPin).toBe(true);
+    expect(report.shadowGenerationCount).toBe(1);
+    expect(report.lastShadowHardFalseAllows).toBe(0);
+    expect(report.tickCount).toBe(1);
+    expect(report.proceedCount).toBe(1);
+    expect(report.stopCount).toBe(0);
+    expect(report.lastRecommendation).toBe("proceed");
+    expect(report.processClean).toBe(true);
+    expect(report.message).toMatch(/processClean=true/);
+  });
+
+  it("buildProcessHealthReport: after stop tick → processClean false, stopCount 1", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-health-stop-"));
+    const store = new SessionStore({ rootDir: dir });
+    await store.create({
+      sessionId: "CPS-HEALTH-STOP",
+      label: "Process health stop",
+      charter: elitePolicy,
+    });
+    const pin = buildPublicDocsInventoryPin({ createdAt: "2026-07-23T00:00:00.000Z" });
+    await store.setInventoryPin("CPS-HEALTH-STOP", pin);
+    await store.recordShadowGeneration("CPS-HEALTH-STOP", {
+      generation: 1,
+      hardFalseAllows: 0,
+      hardFalseDenies: 0,
+      recordedAt: "2026-07-23T00:01:00.000Z",
+    });
+    await store.recordProcessTick("CPS-HEALTH-STOP", {
+      recommendation: "stop",
+      inventoryOk: false,
+      inventoryUnknownTools: ["place_crypto_order_unknown"],
+      sessionCharterBinding: "not-evaluated",
+      processDeniedBySession: false,
+      observedToolCount: 2,
+      message: "Inventory fail-closed: place_crypto_order_unknown.",
+      recordedAt: "2026-07-23T00:02:00.000Z",
+    });
+
+    const session = await store.read("CPS-HEALTH-STOP");
+    const report = buildProcessHealthReport(session);
+    expect(report.hasCharter).toBe(true);
+    expect(report.hasInventoryPin).toBe(true);
+    expect(report.lastShadowHardFalseAllows).toBe(0);
+    expect(report.stopCount).toBe(1);
+    expect(report.tickCount).toBe(1);
+    expect(report.lastRecommendation).toBe("stop");
+    expect(report.inventoryUnknownEver).toContain("place_crypto_order_unknown");
+    expect(report.processClean).toBe(false);
+    expect(report.message).toMatch(/processClean=false/);
   });
 });

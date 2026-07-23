@@ -157,7 +157,7 @@ export const ASSURANCE_JSON = `{
 export const TOOL_CONTRACT_JSON = `{
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.4.4",
+  "serverVersion": "0.4.5",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -583,6 +583,16 @@ export const TOOL_CONTRACT_JSON = `{
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "Returns last 64 process_tick summaries for a session. Process evidence only."
+    },
+    {
+      "name": "runbook_session_process_health",
+      "effect": "aggregate-session-process-health",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "process-observation-only",
+      "openWorldHint": false,
+      "notes": "Multi-axis process health (tick counts, processClean, shadow HFA/HFD). Not a composite safety grade."
     },
     {
       "name": "runbook_operator_scenario_eval",
@@ -1136,7 +1146,7 @@ This playbook freezes the **elite process-supervisor loop**: surface lock → pi
 | Session tools | \`runbook_session_create\`, \`runbook_session_use\`, \`runbook_session_pin_inventory\`, \`runbook_session_get\`, \`runbook_session_export\` |
 | Supervisor tools | \`runbook_process_tick\`, \`runbook_dual_check_diff\`, \`runbook_session_seal_capsule\`, \`runbook_gateway_quorum_demo\` |
 | Related | \`runbook_drift_sentinel\`, \`runbook_session_clone_challenge\`, \`runbook_session_attach_surface_lock\` |
-| Process history / operator eval | \`runbook_session_list_process_ticks\` (session \`processTicks\` ring buffer), \`runbook_operator_scenario_eval\` (\`@runbook/shadow-lab\` evaluateOperatorAugmentedCurriculum) |
+| Process history / operator eval | \`runbook_session_list_process_ticks\` (session \`processTicks\` ring buffer), \`runbook_session_process_health\` (multi-axis processClean/tick counts), \`runbook_operator_scenario_eval\` (\`@runbook/shadow-lab\` evaluateOperatorAugmentedCurriculum) |
 | Operator demo | \`pnpm demo:elite-wave\` |
 
 ## Elite supervisor loop (6 steps)

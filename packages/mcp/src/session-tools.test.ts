@@ -104,10 +104,10 @@ describe("control plane session MCP tools", () => {
     });
     expect(surface.isError).not.toBe(true);
     const body = structured(surface);
-    expect(body.serverVersion).toBe("0.4.4");
+    expect(body.serverVersion).toBe("0.4.5");
     expect(body.brokerExecutionTools).toEqual([]);
     const tools = body.tools as Array<{ name: string; offline: boolean; openWorldHint: boolean }>;
-    expect(tools).toHaveLength(44);
+    expect(tools).toHaveLength(45);
     for (const name of SESSION_TOOL_NAMES) {
       const entry = tools.find((t) => t.name === name);
       expect(entry?.offline).toBe(true);

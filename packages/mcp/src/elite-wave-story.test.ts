@@ -12,12 +12,17 @@ describe("elite-wave-story", () => {
     expect(result.receipt.controlPlaneSuccess).toBe(true);
     expect(result.receipt.toolCount).toBe(TOOL_NAMES.length);
     expect(result.receipt.surfaceLock.toolCount).toBe(TOOL_NAMES.length);
-    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.4");
+    expect(result.receipt.surfaceLock.serverVersion).toBe("0.4.5");
     expect(result.receipt.surfaceLock.hasPlaceOrCancelTools).toBe(false);
     expect(result.receipt.surfaceLock.toolSetSha256).toHaveLength(64);
     expect(result.receipt.processTick.recommendation).toBe("stop");
     expect(result.receipt.processTick.inventoryOk).toBe(false);
     expect(result.receipt.processTick.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+
+    expect(result.receipt.processHealth).toBeDefined();
+    expect(result.receipt.processHealth!.tickCount).toBeGreaterThanOrEqual(1);
+    expect(result.receipt.processHealth!.stopCount).toBeGreaterThanOrEqual(1);
+    expect(result.receipt.processHealth!.processClean).toBe(false);
 
     expect(result.receipt.dualCheck).toBeDefined();
     expect(result.receipt.dualCheck!.disagreementCount).toBeGreaterThanOrEqual(1);

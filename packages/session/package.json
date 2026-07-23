@@ -32,6 +32,10 @@
     "./check-diff": {
       "types": "./src/check-diff.ts",
       "default": "./dist/check-diff.js"
+    },
+    "./process-health": {
+      "types": "./src/process-health.ts",
+      "default": "./dist/process-health.js"
     }
   },
   "sideEffects": false,

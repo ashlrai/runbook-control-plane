@@ -6,7 +6,7 @@ Runbook is a **broker-neutral process, evidence, and control layer for financial
 | --- | --- |
 | **Status** | Research prototype — not a production trading system |
 | **Hosted lab** | [runbook.ashlr.ai](https://runbook.ashlr.ai) · browser-local process evidence · [showcase](https://runbook.ashlr.ai/showcase) |
-| **MCP** | `runbook` **v0.4.4** · closed **44-tool** inventory · `brokerExecutionTools: []` |
+| **MCP** | `runbook` **v0.4.5** · closed **45-tool** inventory · `brokerExecutionTools: []` |
 | **Capital** | Live-capital allocation: **$0** |
 | **License** | [Apache-2.0](./LICENSE) |
 | **Affiliation** | **Not affiliated with, endorsed by, or part of Robinhood Markets, Inc.** |
@@ -71,7 +71,7 @@ pnpm test && pnpm typecheck && pnpm lint && pnpm build
                                         │ stdio
                                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  @runbook/mcp  (runbook v0.4.4 · 44 tools · openWorldHint:false) │
+│  @runbook/mcp  (runbook v0.4.5 · 45 tools · openWorldHint:false) │
 │  ledger · preflight · offline verify · shadow · session · approvals│
 └───┬──────────────┬───────────────┬──────────────┬────────────────┘
     │              │               │              │
@@ -142,8 +142,8 @@ Source of truth: [`packages/mcp/src/surface.ts`](./packages/mcp/src/surface.ts).
 | Property | Value |
 | --- | --- |
 | Server name | `runbook` |
-| Server version | **`0.4.4`** |
-| Tools | **44** closed names in `TOOL_NAMES` |
+| Server version | **`0.4.5`** |
+| Tools | **45** closed names in `TOOL_NAMES` |
 | `brokerExecutionTools` | always `[]` |
 | `openWorldHint` | `false` on every tool |
 | Transport | stdio |
@@ -186,6 +186,18 @@ Source of truth: [`packages/mcp/src/surface.ts`](./packages/mcp/src/surface.ts).
 | 31 | `runbook_session_record_shadow` | Record shadow generation |
 | 32 | `runbook_approval_create_signed` | Ed25519-bound approval artifact |
 | 33 | `runbook_approval_verify` | Verify signed approval |
+| 34 | `runbook_surface_lock_receipt` | Attest closed surface (Runbook only) |
+| 35 | `runbook_process_tick` | Mid-flight inventory + dual-eval → proceed\|warn\|stop |
+| 36 | `runbook_session_import_pack` | Import local session evidence pack |
+| 37 | `runbook_session_seal_capsule` | Self-asserted synthetic process capsule |
+| 38 | `runbook_drift_sentinel` | Inventory / surface drift sentinel |
+| 39 | `runbook_session_clone_challenge` | Process-fork clone challenge |
+| 40 | `runbook_dual_check_diff` | Ledger vs session charter dual-check |
+| 41 | `runbook_session_attach_surface_lock` | Attach surface lock to session dossier |
+| 42 | `runbook_gateway_quorum_demo` | Local authorization-theater demo |
+| 43 | `runbook_session_list_process_ticks` | Process tick history (ring buffer) |
+| 44 | `runbook_operator_scenario_eval` | Synthetic operator-augmented curriculum eval |
+| 45 | `runbook_session_process_health` | Multi-axis process health (`processClean`; not a composite grade) |
 
 There are **no** `place_*` or `cancel_*` tools. Prefer `runbook_list_surface` and resource `runbook://docs/boundary` before mutating tools.
 

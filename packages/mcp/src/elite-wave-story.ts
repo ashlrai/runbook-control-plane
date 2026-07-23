@@ -20,6 +20,7 @@ import {
   applyChallengeMutation,
   buildDualCheckDiff,
   buildProcessCapsulePayloads,
+  buildProcessHealthReport,
   checkObservedToolsAgainstPin,
   processCapsuleExperimentId,
   resolveProcessTick,
@@ -56,6 +57,11 @@ export type EliteWaveStoryReceipt = {
     recommendation: "proceed" | "warn" | "stop";
     inventoryOk: boolean;
     inventoryUnknownTools: string[];
+  };
+  processHealth?: {
+    processClean: boolean;
+    stopCount: number;
+    tickCount: number;
   };
   dualCheck?: {
     disagreementCount: number;
@@ -231,6 +237,33 @@ export async function runEliteWaveStory(
     }
     if (tick.brokerEffect !== false || tick.compositeScore !== false || tick.capitalAtRisk !== 0) {
       errors.push("process-tick-claims-violation");
+    }
+    await store.recordProcessTick(sessionId, {
+      recommendation: tick.recommendation,
+      inventoryOk: tick.inventoryOk,
+      inventoryUnknownTools: [...tick.inventoryUnknownTools],
+      sessionCharterBinding: tick.sessionCharterBinding,
+      processDeniedBySession: tick.processDeniedBySession,
+      observedToolCount: 2,
+      message: tick.message,
+    });
+    {
+      const afterTick = await store.read(sessionId);
+      const health = buildProcessHealthReport(afterTick);
+      receipt.processHealth = {
+        processClean: health.processClean,
+        stopCount: health.stopCount,
+        tickCount: health.tickCount,
+      };
+      if (health.tickCount < 1) {
+        errors.push("process-health-expected-ticks");
+      }
+      if (health.stopCount < 1) {
+        errors.push("process-health-expected-stop-count");
+      }
+      if (health.processClean) {
+        errors.push("process-health-expected-not-clean-after-stop");
+      }
     }
 
     // 3. dual_check_diff: weak ledger vs elite session charter on option SPY (fail-closed)

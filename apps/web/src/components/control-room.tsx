@@ -281,9 +281,46 @@ export function ControlRoom() {
     setError(null);
     setRan(true);
     const proposal = formToProposal(form);
-    setDualEval(computeDualEval(proposal, preflight.result.allowed));
+    const dual = computeDualEval(proposal, preflight.result.allowed);
+    setDualEval(dual);
     setCheckDiff(computeCheckDiff(proposal));
-  }, [preflight, form, computeDualEval, computeCheckDiff]);
+
+    // When dual-eval is bound to an existing browser session, record a process tick
+    // (inventory N/A → inventoryOk true). Process-layer only — not a hard gateway.
+    if (dual && bindSessionId) {
+      let sessionExists = false;
+      try {
+        browserSessionStore.read(bindSessionId);
+        sessionExists = true;
+      } catch {
+        sessionExists = false;
+      }
+      if (sessionExists) {
+        const recommendation: "proceed" | "warn" | "stop" = dual.processDeniedBySession
+          ? "stop"
+          : dual.sessionCharterBinding.includes("mismatch")
+            ? "warn"
+            : dual.allowed
+              ? "proceed"
+              : "stop";
+        void browserSessionStore
+          .recordProcessTick(bindSessionId, {
+            recommendation,
+            inventoryOk: true,
+            inventoryUnknownTools: [],
+            sessionCharterBinding: dual.sessionCharterBinding,
+            processDeniedBySession: dual.processDeniedBySession,
+            observedToolCount: 0,
+            message:
+              `control-room dual-eval · recommendation=${recommendation} · binding=${dual.sessionCharterBinding} · process-layer only · not a hard broker gateway`,
+          })
+          .then(() => refreshSessions())
+          .catch(() => {
+            /* tick record is best-effort for the operator UI */
+          });
+      }
+    }
+  }, [preflight, form, computeDualEval, computeCheckDiff, bindSessionId, refreshSessions]);
 
   function updateForm<K extends keyof ProposalForm>(key: K, value: ProposalForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));

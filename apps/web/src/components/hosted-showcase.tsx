@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ExternalLink,
   FlaskConical,
@@ -74,10 +75,12 @@ const INITIAL_STEPS: StoryStep[] = [
 ];
 
 export function HostedShowcase() {
+  const searchParams = useSearchParams();
   const [steps, setSteps] = useState<StoryStep[]>(INITIAL_STEPS);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<string>("// Run the live story to emit a browser receipt.");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const autorunStarted = useRef(false);
 
   const patchStep = useCallback((id: string, status: StepStatus, detail?: string) => {
     setSteps((prev) =>
@@ -240,6 +243,16 @@ export function HostedShowcase() {
       setBusy(false);
     }
   }, [patchStep]);
+
+  // ?autorun=1 or ?auto=1 runs the control-plane story once on mount.
+  useEffect(() => {
+    if (autorunStarted.current) return;
+    const auto =
+      searchParams.get("autorun") === "1" || searchParams.get("auto") === "1";
+    if (!auto) return;
+    autorunStarted.current = true;
+    void runStory();
+  }, [searchParams, runStory]);
 
   return (
     <main className={styles.page}>
