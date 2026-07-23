@@ -13,6 +13,7 @@ import {
 } from "@runbook/shadow-lab";
 import { runCapsuleVerificationCommand } from "./capsule-command.js";
 import { runCheckpointVerificationCommand } from "./checkpoint-command.js";
+import { runControlPlaneStory } from "./control-plane-story.js";
 import { runGoldenJourney } from "./golden-journey.js";
 import { diagnoseShadowPilot, shadowPilotManifestSchema } from "./pilot-doctor.js";
 import { buildPublicSnapshot } from "./public-snapshot.js";
@@ -33,6 +34,7 @@ function usage() {
     "  runbook export-public EXPERIMENT_ID [--data-dir ABSOLUTE_PATH] [--ledger-id ID]",
     "  runbook pilot-doctor MANIFEST_PATH [--data-dir ABSOLUTE_PATH] [--ledger-id ID] [--workspace-root ABSOLUTE_PATH]",
     "  runbook golden-journey [--data-dir ABSOLUTE_PATH] [--workspace-root ABSOLUTE_PATH] [--keep-temp]",
+    "  runbook control-plane-story [--data-dir ABSOLUTE_PATH] [--keep-temp] [--session-id ID] [--experiment-id ID]",
     "  runbook shadow-curriculum [--policy path.json]",
     "  runbook shadow-improve [--policy path.json] [--generations N]",
     "  runbook shadow-tournament [--generations N] [--mutants N] [--seed N]",
@@ -43,6 +45,7 @@ function usage() {
     "Public exports contain event metadata only. They exclude payloads, actors, idempotency keys, and broker IDs.",
     "pilot-doctor is offline and never connects to a broker. Its result is local readiness evidence, not enforcement.",
     "golden-journey runs the protocol-level shadow pilot + offline demos and prints runbook.golden-journey-receipt.v1.",
+    "control-plane-story runs session spine: weak charter → pin inventory → shadow improve HFA=0 → bind experiment → agent-eval → export pack.",
     "shadow-curriculum scores hardFalseAllows for process quality only (not trading performance).",
     "shadow-improve recursively repairs policy toward a process-quality fixed point (not capital allocation).",
     "shadow-tournament runs multi-charter Pareto search on hardFalseAllows vs hardFalseDenies (process only).",
@@ -94,6 +97,25 @@ async function main() {
       keepTempDir: keepTemp,
     });
     console.log(JSON.stringify(result.receipt, null, 2));
+    process.exitCode = result.exitCode;
+    return;
+  }
+
+  if (command === "control-plane-story") {
+    const dataDir = option(args, "--data-dir");
+    const sessionId = option(args, "--session-id");
+    const experimentId = option(args, "--experiment-id");
+    const keepTemp = args.includes("--keep-temp");
+    const result = await runControlPlaneStory({
+      ...(dataDir !== undefined ? { dataDir } : {}),
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(experimentId !== undefined ? { experimentId } : {}),
+      keepTempDir: keepTemp,
+    });
+    console.log(JSON.stringify(result.receipt, null, 2));
+    if (result.banner) {
+      console.log(result.banner);
+    }
     process.exitCode = result.exitCode;
     return;
   }

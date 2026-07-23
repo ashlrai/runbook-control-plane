@@ -190,6 +190,7 @@ describe("Runbook MCP protocol", () => {
       "runbook://demos/shadow-pilot",
       "runbook://demos/shadow-self-improve",
       "runbook://playbooks/recursive-elite-process",
+      "runbook://playbooks/control-plane-session",
       "runbook://status/dossier",
       "runbook://docs/control-plane-session",
       "runbook://ledger/verification",
@@ -234,6 +235,7 @@ describe("Runbook MCP protocol", () => {
       "runbook_recursive_improve",
       "runbook_elite_recursive_loop",
       "runbook_control_plane_session",
+      "runbook_control_plane_full",
     ]));
 
     const shadow = await harness.client.getPrompt({

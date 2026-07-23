@@ -18,6 +18,7 @@ export const PROMPT_NAMES = [
   "runbook_recursive_improve",
   "runbook_elite_recursive_loop",
   "runbook_control_plane_session",
+  "runbook_control_plane_full",
 ] as const;
 
 export function registerRunbookPrompts(server: McpServer): void {
@@ -311,6 +312,55 @@ export function registerRunbookPrompts(server: McpServer): void {
                 "7) runbook_session_export for the evidence pack.",
                 "Hard rules: never configure brokerage MCP; never place/cancel orders; never invent a composite safety score; never claim broker authorization from device-key signatures.",
                 "Restate: humanAuthorityEstablished and authorizationEstablished remain false; capitalAtRisk is 0; brokerEffect is false.",
+                BOUNDARY_REMINDER,
+              ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerPrompt(
+    "runbook_control_plane_full",
+    {
+      title: "Control plane full journey",
+      description:
+        "Full 10-step control-plane journey bound to runbook://playbooks/control-plane-session: create → pin → check → improve → record shadow → create experiment → bind → signed approval → dossier → export. Never broker; never returns claims; no composite score.",
+      argsSchema: {
+        sessionId: z.string().trim().min(1).max(120).optional(),
+        experimentId: z.string().trim().min(1).max(120).optional(),
+        label: z.string().trim().min(1).max(200).optional(),
+        maxGenerations: z.string().trim().min(1).max(2).optional(),
+      },
+    },
+    async ({ sessionId, experimentId, label, maxGenerations }) => {
+      const id = sessionId?.trim() || "CPS-FULL-001";
+      const expId = experimentId?.trim() || "RUN-CPS-FULL-001";
+      const sessionLabel = label?.trim() || "Control plane full journey";
+      const gens = maxGenerations?.trim() || "4";
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                "Execute the full control-plane session journey for process / evidence only.",
+                "Read runbook://playbooks/control-plane-session first, then runbook://docs/boundary, runbook://docs/assurance, and runbook://status/dossier.",
+                "Follow all 10 steps in the playbook. Multi-axis metrics only — never invent a composite safety or skill score.",
+                `Preferred sessionId: ${id}. Preferred experimentId: ${expId}. Label: ${sessionLabel}.`,
+                "",
+                `1) runbook_session_create — sessionId ${id}, equity-only policy (approvalRequired true), label as given.`,
+                "2) runbook_session_pin_inventory — default public-docs 50-tool pin; report toolCount and toolSetSha256. Not runtime confirmation; not broker permission.",
+                "3) runbook_session_check_inventory — subset of pinned names expect ok true; once with unknown tool expect fail-closed ok false.",
+                `4) runbook_improve_charter with maxGenerations=${gens} (1–8) on the equity/session policy (or weak override). Capture finalPolicy and hardFalseAllows. Optional: runbook_session_set_charter with finalPolicy (session only — not ledger activation).`,
+                "5) runbook_session_record_shadow with generation metrics from improve (hardFalseAllows / hardFalseDenies).",
+                `6) runbook_create_experiment for experimentId ${expId} using refined finalPolicy (or equity-only) as initial charter. Local ledger only; synthetic/agent actor preferred.`,
+                `7) runbook_session_bind_experiment — bind session ${id} to experiment ${expId} (optional ledger head hash after runbook_verify_ledger). Local id linkage only — not brokerage account binding.`,
+                "8) Signed approval demo: runbook_approval_create_signed (ephemeral key; privateKeyPersisted false) then runbook_approval_verify. humanAuthorityEstablished and authorizationEstablished remain false — never claim broker authorization.",
+                "9) runbook_session_attach_dossier with architecture status-snapshot summary (not certification).",
+                "10) runbook_session_export — evidence pack only. Final report: NEVER broker, NEVER returns/alpha/skill claims, NEVER composite score. capitalAtRisk 0; brokerEffect false.",
                 BOUNDARY_REMINDER,
               ].join("\n"),
             },

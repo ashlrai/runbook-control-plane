@@ -6,6 +6,11 @@ import { registerRunbookPrompts } from "./prompts.js";
 import { withToolErrors } from "./protocol.js";
 import { registerRunbookResources } from "./resources.js";
 import { RunbookService } from "./service.js";
+import {
+  resolveSessionId,
+  resolveSessionStore,
+  withSession,
+} from "./session-context.js";
 import { registerSessionTools } from "./session-tools.js";
 import { registerShadowTools } from "./shadow-tools.js";
 import { buildSurfaceInventory, SERVER_NAME, SERVER_VERSION } from "./surface.js";
@@ -53,7 +58,7 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
   registerRunbookResources(server, service);
   registerRunbookPrompts(server);
   registerOfflineTools(server, service, options);
-  registerShadowTools(server, service);
+  registerShadowTools(server, service, options);
   registerSessionTools(server, options);
 
   server.registerTool(
@@ -90,7 +95,7 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
     {
       title: "Create Runbook Experiment",
       description:
-        "Create a local experiment and activate its first deterministic risk charter. Records owned local data only; never opens or funds a brokerage account. Read runbook://docs/boundary before first use. Does not place trades or accept credentials.",
+        "Create a local experiment and activate its first deterministic risk charter. Records owned local data only; never opens or funds a brokerage account. Optional sessionId (or active session via RUNBOOK_SESSION_ID / active-session.json) binds the experiment to the control-plane session spine. Read runbook://docs/boundary before first use. Does not place trades or accept credentials.",
       inputSchema: {
         experimentId: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/),
         name: z.string().trim().min(1).max(120),
@@ -100,22 +105,40 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
         policy: riskPolicySchema,
         actor: z.object(actorShape),
         occurredAt: z.iso.datetime(),
+        sessionId: z
+          .string()
+          .trim()
+          .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/)
+          .optional(),
       },
       outputSchema: {
         experimentId: z.string(),
         experimentHash: z.string(),
         charterHash: z.string(),
         enforcement: z.literal("advisory"),
+        sessionId: z.string().optional(),
+        sessionBound: z.boolean(),
+        brokerEffect: z.literal(false),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     withToolErrors(async (input) => {
       const created = await service.createExperiment(input);
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      const store = resolveSessionStore(options);
+      let sessionBound = false;
+      await withSession(sessionId, store, async (id, s) => {
+        await s.bindExperiment(id, input.experimentId, created.charter.hash);
+        sessionBound = true;
+      });
       return {
         experimentId: input.experimentId,
         experimentHash: created.experiment.hash,
         charterHash: created.charter.hash,
-        enforcement: "advisory",
+        enforcement: "advisory" as const,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        sessionBound,
+        brokerEffect: false as const,
       };
     }),
   );

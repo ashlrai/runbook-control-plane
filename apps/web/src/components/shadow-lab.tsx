@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Check,
   Copy,
   Download,
   FlaskConical,
   Gauge,
+  Link2,
   LockKeyhole,
   Play,
   RefreshCcw,
@@ -21,6 +22,12 @@ import {
 } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 import type { RiskPolicy } from "../lib/runbook";
+import {
+  browserSessionStore,
+  parseSessionIdQuery,
+  resolveSessionCharterSeed,
+  writeShadowLoopToSession,
+} from "../lib/control-plane-session";
 import {
   CURRICULUM_SCENARIOS,
   ELITE_EQUITY_CHARTER,
@@ -109,6 +116,9 @@ export function ShadowLab() {
   const [maxGenerations, setMaxGenerations] = useState(4);
   const [animKey, setAnimKey] = useState(0);
   const [statusNote, setStatusNote] = useState("Seed policy loaded · curriculum armed");
+  const [boundSessionId, setBoundSessionId] = useState<string | null>(null);
+  const [boundSessionLabel, setBoundSessionLabel] = useState<string | null>(null);
+  const [sessionBindNote, setSessionBindNote] = useState<string | null>(null);
 
   // Tournament state
   const [tournamentGens, setTournamentGens] = useState(4);
@@ -128,6 +138,44 @@ export function ShadowLab() {
   const [metaNote, setMetaNote] = useState(
     "Paste ledger-like JSON or load the sample proposal+preflight fixture",
   );
+
+  // Bind to Control Plane Session via ?sessionId= deep link.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sessionId = parseSessionIdQuery(window.location.search);
+    if (!sessionId) {
+      setBoundSessionId(null);
+      setBoundSessionLabel(null);
+      setSessionBindNote(null);
+      return;
+    }
+    try {
+      const session = browserSessionStore.read(sessionId);
+      const { seed, usedWeakFallback } = resolveSessionCharterSeed(session);
+      setPolicy(clonePolicy(seed));
+      setHistory(seedHistory(seed));
+      setLastDelta([]);
+      setBoundSessionId(session.sessionId);
+      setBoundSessionLabel(session.label);
+      setSessionBindNote(
+        usedWeakFallback
+          ? `Loaded session ${session.sessionId} · no charter yet — weak seed armed for refine`
+          : `Loaded session ${session.sessionId} charter into working policy`,
+      );
+      setStatusNote(
+        usedWeakFallback
+          ? `Bound to ${session.sessionId} · weak seed (session had no charter)`
+          : `Bound to ${session.sessionId} · session charter loaded`,
+      );
+      setAnimKey((k) => k + 1);
+    } catch {
+      setBoundSessionId(null);
+      setBoundSessionLabel(null);
+      setSessionBindNote(
+        `sessionId=${sessionId} not found in browser localStorage · create it on /session first`,
+      );
+    }
+  }, []);
 
   const evaluation = useMemo(() => evaluateCurriculum(policy), [policy]);
   const { metrics, results } = evaluation;
@@ -234,15 +282,39 @@ export function ShadowLab() {
     });
     setLastDelta(finalDelta);
     const final = loop[loop.length - 1]!;
-    setStatusNote(
+    const note =
       final.stoppedReason === "curriculum-clean"
         ? `Fixed-point loop · curriculum clean after ${loop.length - 1} generation(s)`
         : final.stoppedReason === "max-generations"
           ? `Stopped at maxGenerations=${maxGenerations}`
-          : `Fixed-point loop complete · ${loop.length - 1} generation(s)`,
-    );
+          : `Fixed-point loop complete · ${loop.length - 1} generation(s)`;
+
+    // When bound to a Control Plane Session, write charter + shadow metrics back.
+    if (boundSessionId) {
+      void writeShadowLoopToSession({
+        sessionId: boundSessionId,
+        history: loop,
+      })
+        .then((written) => {
+          setStatusNote(
+            `${note} · wrote back to ${boundSessionId} · HFA ${written.finalHardFalseAllows} / HFD ${written.finalHardFalseDenies} · ${written.generationsRecorded} gen recorded`,
+          );
+          setSessionBindNote(
+            `Wrote refined charter + ${written.generationsRecorded} shadow generation(s) to ${boundSessionId}`,
+          );
+        })
+        .catch((error: unknown) => {
+          setStatusNote(
+            `${note} · session write-back failed: ${
+              error instanceof Error ? error.message : "unknown error"
+            }`,
+          );
+        });
+    } else {
+      setStatusNote(note);
+    }
     rerunAnimation();
-  }, [history, maxGenerations, policy, rerunAnimation]);
+  }, [boundSessionId, history, maxGenerations, policy, rerunAnimation]);
 
   const downloadReport = useCallback(() => {
     const report = buildExportReport(history);
@@ -355,6 +427,7 @@ export function ShadowLab() {
         </Link>
         <nav className={styles.headerNav} aria-label="Shadow Lab navigation">
           <Link href="/">Product map</Link>
+          <Link href="/session">Session</Link>
           <Link href="/control-room">Control Room</Link>
           <Link href="/mcp">MCP cockpit</Link>
           <Link href="/experiments/new">Charter builder</Link>
@@ -371,6 +444,46 @@ export function ShadowLab() {
         <span>TOURNAMENT ≠ TRADING PERF</span>
         <span>CAPITAL 0</span>
       </div>
+
+      {boundSessionId ? (
+        <div
+          className={styles.sessionBoundBanner}
+          role="status"
+          aria-live="polite"
+          aria-label="Bound session banner"
+        >
+          <Link2 size={16} aria-hidden="true" />
+          <div>
+            <strong>Bound to session {boundSessionId}</strong>
+            <p>
+              {boundSessionLabel ? `${boundSessionLabel} · ` : ""}
+              Working policy loaded from BrowserSessionStore. “Run until fixed point” writes
+              refined charter + shadow generation metrics back to the session.
+              {sessionBindNote ? ` ${sessionBindNote}.` : ""}
+            </p>
+          </div>
+          <Link className={styles.sessionBoundLink} href="/session">
+            Open Session
+          </Link>
+        </div>
+      ) : sessionBindNote ? (
+        <div
+          className={styles.sessionBoundBanner}
+          data-tone="warn"
+          role="status"
+          aria-live="polite"
+          aria-label="Session bind notice"
+        >
+          <ShieldAlert size={16} aria-hidden="true" />
+          <div>
+            <strong>Session bind</strong>
+            <p>{sessionBindNote}</p>
+          </div>
+          <Link className={styles.sessionBoundLink} href="/session">
+            Open Session
+          </Link>
+        </div>
+      ) : null}
 
       <div className={styles.banner} role="status" aria-live="polite">
         <ShieldAlert size={18} aria-hidden="true" />

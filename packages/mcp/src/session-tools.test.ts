@@ -25,11 +25,13 @@ const elitePolicy: RiskPolicy = {
 
 const SESSION_TOOL_NAMES = [
   "runbook_session_create",
+  "runbook_session_use",
   "runbook_session_get",
   "runbook_session_export",
   "runbook_session_set_charter",
   "runbook_session_pin_inventory",
   "runbook_session_check_inventory",
+  "runbook_session_bind_experiment",
   "runbook_session_attach_dossier",
   "runbook_session_record_shadow",
   "runbook_approval_create_signed",
@@ -98,7 +100,7 @@ describe("control plane session MCP tools", () => {
     expect(body.serverVersion).toBe("0.3.0");
     expect(body.brokerExecutionTools).toEqual([]);
     const tools = body.tools as Array<{ name: string; offline: boolean; openWorldHint: boolean }>;
-    expect(tools).toHaveLength(30);
+    expect(tools).toHaveLength(32);
     for (const name of SESSION_TOOL_NAMES) {
       const entry = tools.find((t) => t.name === name);
       expect(entry?.offline).toBe(true);
@@ -351,5 +353,115 @@ describe("control plane session MCP tools", () => {
     expect(promptText).toMatch(/runbook_session_pin_inventory/);
     expect(promptText).toMatch(/composite safety score/i);
     expect(promptText).toMatch(/broker authorization/i);
+  });
+
+  it("advertises full control-plane playbook resource and prompt", async () => {
+    const playbook = await harness.client.readResource({
+      uri: "runbook://playbooks/control-plane-session",
+    });
+    const text = playbook.contents.map((part) => ("text" in part ? part.text : "")).join("");
+    expect(text).toMatch(/full journey/i);
+    expect(text).toMatch(/runbook_session_bind_experiment/);
+    expect(text).toMatch(/runbook_improve_charter/);
+    expect(text).toMatch(/NEVER broker/i);
+    expect(text).toMatch(/runbook_control_plane_full/);
+
+    const prompt = await harness.client.getPrompt({
+      name: "runbook_control_plane_full",
+      arguments: { sessionId: "CPS-FULL-PROMPT", experimentId: "RUN-FULL-PROMPT" },
+    });
+    const promptText = prompt.messages
+      .map((message) => (message.content.type === "text" ? message.content.text : ""))
+      .join("\n");
+    expect(promptText).toContain("CPS-FULL-PROMPT");
+    expect(promptText).toContain("RUN-FULL-PROMPT");
+    expect(promptText).toContain("runbook://playbooks/control-plane-session");
+    expect(promptText).toMatch(/runbook_session_bind_experiment/);
+    expect(promptText).toMatch(/NEVER returns/i);
+  });
+
+  it("binds a local experiment id onto a session", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: { sessionId: "CPS-BIND-001", label: "Bind test" },
+    });
+
+    const bound = await harness.client.callTool({
+      name: "runbook_session_bind_experiment",
+      arguments: {
+        sessionId: "CPS-BIND-001",
+        experimentId: "RUN-BIND-001",
+        ledgerHeadHash: "d".repeat(64),
+      },
+    });
+    expect(bound.isError).not.toBe(true);
+    expect(structured(bound)).toMatchObject({
+      schemaVersion: "runbook.session-bind-experiment.v1",
+      sessionId: "CPS-BIND-001",
+      experimentId: "RUN-BIND-001",
+      ledgerHeadHash: "d".repeat(64),
+      brokerEffect: false,
+      capitalAtRisk: 0,
+    });
+  });
+
+  it("runbook_session_use writes active-session marker", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: { sessionId: "CPS-USE-001", label: "Use marker session" },
+    });
+
+    const used = await harness.client.callTool({
+      name: "runbook_session_use",
+      arguments: { sessionId: "CPS-USE-001" },
+    });
+    expect(used.isError).not.toBe(true);
+    expect(structured(used)).toMatchObject({
+      schemaVersion: "runbook.session-use.v1",
+      sessionId: "CPS-USE-001",
+      active: true,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    expect(String(structured(used).markerPath)).toContain("active-session.json");
+  });
+
+  it("create_experiment binds optional sessionId via session spine", async () => {
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: { sessionId: "CPS-CREATE-BIND", label: "Create bind" },
+    });
+
+    const created = await harness.client.callTool({
+      name: "runbook_create_experiment",
+      arguments: {
+        experimentId: "RUN-CREATE-BIND",
+        name: "Session-bound experiment",
+        question: "Does create_experiment bind the session?",
+        benchmark: "VTI",
+        observationDays: 1,
+        policy: elitePolicy,
+        actor: { type: "agent", id: "session-bind-agent" },
+        occurredAt: "2026-07-22T22:00:00.000Z",
+        sessionId: "CPS-CREATE-BIND",
+      },
+    });
+    expect(created.isError).not.toBe(true);
+    expect(structured(created)).toMatchObject({
+      experimentId: "RUN-CREATE-BIND",
+      sessionId: "CPS-CREATE-BIND",
+      sessionBound: true,
+      brokerEffect: false,
+      enforcement: "advisory",
+    });
+
+    const got = await harness.client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-CREATE-BIND" },
+    });
+    const session = structured(got).session as { experimentId?: string; ledgerHeadHash?: string };
+    expect(session.experimentId).toBe("RUN-CREATE-BIND");
+    expect(session.ledgerHeadHash).toHaveLength(64);
   });
 });

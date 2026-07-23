@@ -10,6 +10,7 @@ import {
   DEMO_SHADOW_SELF_IMPROVE_MD,
   EQUITY_POLICY_JSON,
   CONTROL_PLANE_SESSION_MD,
+  PLAYBOOK_CONTROL_PLANE_SESSION_MD,
   PLAYBOOK_RECURSIVE_ELITE_MD,
   SHADOW_MANIFEST_JSON,
   SHADOW_MANIFEST_SCHEMA,
@@ -47,6 +48,7 @@ export const STATIC_RESOURCE_URIS = [
   "runbook://demos/shadow-pilot",
   "runbook://demos/shadow-self-improve",
   "runbook://playbooks/recursive-elite-process",
+  "runbook://playbooks/control-plane-session",
   "runbook://status/dossier",
   "runbook://docs/control-plane-session",
   "runbook://ledger/verification",
@@ -207,6 +209,18 @@ export function registerRunbookResources(server: McpServer, service: RunbookServ
       mimeType: "text/markdown",
     },
     async (uri) => textResource(uri.href, "text/markdown", PLAYBOOK_RECURSIVE_ELITE_MD),
+  );
+
+  server.registerResource(
+    "playbook-control-plane-session",
+    "runbook://playbooks/control-plane-session",
+    {
+      title: "Playbook: control plane full journey",
+      description:
+        "Full journey: session create → pin → check → improve charter → record shadow → create experiment → bind → signed approval → dossier → export. Never broker; never returns claims.",
+      mimeType: "text/markdown",
+    },
+    async (uri) => textResource(uri.href, "text/markdown", PLAYBOOK_CONTROL_PLANE_SESSION_MD),
   );
 
   server.registerResource(

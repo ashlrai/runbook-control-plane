@@ -445,6 +445,54 @@
   line-height: 1.45;
 }
 
+.trendList {
+  display: grid;
+  gap: 6px;
+}
+
+.trendRow {
+  display: grid;
+  grid-template-columns: 48px 72px 72px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  background: #fbfcfe;
+  font-size: 12px;
+}
+
+.trendRow[data-clean="true"] {
+  border-color: #b9dbc9;
+  background: #e6f6ef;
+}
+
+.trendRow strong {
+  font: 700 12px/1 var(--font-mono), monospace;
+}
+
+.trendRow span {
+  color: #3a475c;
+  font: 550 11px/1.2 var(--font-mono), monospace;
+}
+
+.trendRow em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--sd-ink);
+}
+
+.trendRow code {
+  color: var(--sd-muted);
+  font: 500 10px/1.3 var(--font-mono), monospace;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+a.ghostBtn {
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 @media (max-width: 960px) {
   .hero,
   .layout,

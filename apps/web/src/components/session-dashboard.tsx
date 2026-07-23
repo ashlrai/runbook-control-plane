@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Download,
+  ExternalLink,
   Layers3,
   Link2,
   LockKeyhole,
   Pin,
   Plus,
   Radio,
+  Repeat2,
   ShieldAlert,
   ShieldCheck,
   Terminal,
@@ -21,8 +23,11 @@ import {
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   downloadEvidencePack,
+  refineCharterIntoSession,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
+  shadowLabHrefForSession,
+  shadowTrendFromSession,
   type CharterSeedKind,
   type ControlPlaneSession,
   type InventoryCheckResult,
@@ -59,6 +64,11 @@ export function SessionDashboard() {
   const selected = useMemo(
     () => sessions.find((s) => s.sessionId === selectedId) ?? null,
     [sessions, selectedId],
+  );
+
+  const shadowTrend = useMemo(
+    () => (selected ? shadowTrendFromSession(selected) : []),
+    [selected],
   );
 
   const createSession = useCallback(async () => {
@@ -151,6 +161,28 @@ export function SessionDashboard() {
       refresh();
     } catch (error) {
       setStatusNote(error instanceof Error ? error.message : "Could not record shadow metrics.");
+    } finally {
+      setBusy(false);
+    }
+  }, [selected, refresh]);
+
+  const runRefineIntoSession = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const result = await refineCharterIntoSession({
+        sessionId: selected.sessionId,
+        maxGenerations: 4,
+      });
+      const seedNote = result.usedWeakFallback
+        ? "weak seed (no prior charter)"
+        : "session charter";
+      setStatusNote(
+        `Refine into session · ${seedNote} · HFA ${result.finalHardFalseAllows} / HFD ${result.finalHardFalseDenies} · ${result.generationsRecorded} gen recorded · charter updated · not investment skill`,
+      );
+      refresh();
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Refine into session failed.");
     } finally {
       setBusy(false);
     }
@@ -362,6 +394,22 @@ export function SessionDashboard() {
                   <button
                     type="button"
                     className={styles.primaryBtn}
+                    onClick={() => void runRefineIntoSession()}
+                    disabled={busy}
+                  >
+                    <Repeat2 size={14} aria-hidden="true" />
+                    Run refine into session
+                  </button>
+                  <Link
+                    className={styles.ghostBtn}
+                    href={shadowLabHrefForSession(selected.sessionId)}
+                  >
+                    <ExternalLink size={14} aria-hidden="true" />
+                    Open in Shadow Lab
+                  </Link>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
                     onClick={() => void exportPack()}
                     disabled={busy}
                   >
@@ -377,6 +425,58 @@ export function SessionDashboard() {
                     <Radio size={14} aria-hidden="true" />
                     Record demo shadow gen
                   </button>
+                </div>
+              </div>
+
+              <div className={styles.panel}>
+                <div className={styles.panelHead}>
+                  <div>
+                    <p className={styles.eyebrow}>Shadow Lab · live trend</p>
+                    <h2>HFA / HFD from session.shadowGenerations</h2>
+                  </div>
+                  <span className={styles.mono} style={{ padding: "6px 8px" }}>
+                    {shadowTrend.length} point(s)
+                  </span>
+                </div>
+                <div className={styles.sectionBody}>
+                  <p>
+                    Process-control metrics only — hardFalseAllows / hardFalseDenies from refine
+                    loops bound to this session. Not trading performance. Not a composite score.
+                  </p>
+                  {shadowTrend.length === 0 ? (
+                    <p className={styles.empty} style={{ padding: 0 }}>
+                      No shadow generations yet. Run refine into session, open Shadow Lab with this
+                      session bound, or record a demo generation.
+                    </p>
+                  ) : (
+                    <div
+                      className={styles.trendList}
+                      role="list"
+                      aria-label="Shadow HFA HFD trend"
+                    >
+                      {shadowTrend.map((row) => {
+                        const clean =
+                          row.hardFalseAllows === 0 && row.hardFalseDenies === 0;
+                        return (
+                          <div
+                            key={`${row.generation}-${row.recordedAt}`}
+                            className={styles.trendRow}
+                            role="listitem"
+                            data-clean={clean ? "true" : "false"}
+                          >
+                            <strong>G{row.generation}</strong>
+                            <span>
+                              HFA <em>{row.hardFalseAllows}</em>
+                            </span>
+                            <span>
+                              HFD <em>{row.hardFalseDenies}</em>
+                            </span>
+                            <code>{row.recordedAt}</code>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -498,9 +598,16 @@ export function SessionDashboard() {
       </div>
 
       <section className={styles.linkStrip} aria-label="Related product surfaces">
-        <Link className={styles.linkCard} href="/shadow-lab">
+        <Link
+          className={styles.linkCard}
+          href={selected ? shadowLabHrefForSession(selected.sessionId) : "/shadow-lab"}
+        >
           <strong>Shadow Lab</strong>
-          <span>Recursive refine · tournament · meta-curriculum</span>
+          <span>
+            {selected
+              ? `Bound deep link · ?sessionId=${selected.sessionId}`
+              : "Recursive refine · tournament · meta-curriculum"}
+          </span>
         </Link>
         <Link className={styles.linkCard} href="/control-room">
           <strong>Control Room</strong>

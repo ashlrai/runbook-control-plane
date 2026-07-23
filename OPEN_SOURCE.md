@@ -1,9 +1,29 @@
 # Open source plan
 
-Runbook intends an **open-core** distribution model. This file records the
-intent for a future public export. It does **not** make this private monorepo
-public, and it does **not** grant redistribution rights beyond private access
-and any separate written permission.
+Runbook uses an **open-core** distribution model.
+
+**Public repository (export tree only):**  
+[https://github.com/ashlrai/runbook-control-plane](https://github.com/ashlrai/runbook-control-plane)  
+Tag: `v0.3.0` · Apache-2.0 · no private commercial/strategy history
+
+**Private monorepo (this checkout):**  
+[https://github.com/ashlrai/runbook](https://github.com/ashlrai/runbook)  
+Full research workspace; not a public redistribution license by itself.
+
+Re-export after engineering changes:
+
+```bash
+# Export only (staging tree)
+pnpm export:public -- --dest /tmp/runbook-public-export
+
+# Export + overlay into public clone + local commit (no push)
+pnpm sync:public
+
+# Export + commit + push to ashlrai/runbook-control-plane
+pnpm sync:public:push
+```
+
+Details: [`docs/PUBLIC_RELEASE_CHECKLIST.md`](./docs/PUBLIC_RELEASE_CHECKLIST.md).
 
 ## Intended open-core model
 
@@ -70,10 +90,32 @@ pnpm export:public
 # or: node scripts/public-export.mjs --dest /tmp/runbook-public-export
 ```
 
+Refresh the **separate** public repo (`ashlrai/runbook-control-plane`) from that export:
+
+```bash
+# Local commit only (default dest /tmp/runbook-public-export,
+# clone/URL → /tmp/runbook-control-plane-clone)
+pnpm sync:public
+
+# Same, then git push (needs network + credentials)
+pnpm sync:public:push
+
+# Explicit paths
+node scripts/sync-public-repo.mjs \
+  --dest /tmp/runbook-public-export \
+  --repo https://github.com/ashlrai/runbook-control-plane.git
+
+node scripts/sync-public-repo.mjs \
+  --repo /path/to/local/runbook-control-plane \
+  --push
+```
+
 - Allowlist: [`scripts/public-export-allowlist.json`](./scripts/public-export-allowlist.json)
+- Sync pipeline: [`scripts/sync-public-repo.mjs`](./scripts/sync-public-repo.mjs)
 - Commercial/strategy/personal docs are **omitted** by design
 - Draft public README: [`README.public.md`](./README.public.md) (copied as `README.md` in the export)
 - Claim evidence map: [`docs/PUBLIC_CLAIM_MATRIX.md`](./docs/PUBLIC_CLAIM_MATRIX.md)
+- The private monorepo is never used as `--dest` or `--repo` (script refuses)
 
 ## CI (elite smoke)
 

@@ -11,6 +11,7 @@ repository is a **separate** tree produced by `pnpm export:public`.
 | **License** | [Apache-2.0](../LICENSE) + [NOTICE](../NOTICE) |
 | **Plan / gates** | [OPEN_SOURCE.md](../OPEN_SOURCE.md), [RELEASE.md](../RELEASE.md) |
 | **Export tool** | `pnpm export:public` → [`scripts/public-export.mjs`](../scripts/public-export.mjs) |
+| **Public repo sync** | `pnpm sync:public` / `pnpm sync:public:push` → [`scripts/sync-public-repo.mjs`](../scripts/sync-public-repo.mjs) |
 | **Allowlist** | [`scripts/public-export-allowlist.json`](../scripts/public-export-allowlist.json) |
 | **Public README draft** | [`README.public.md`](../README.public.md) → becomes `README.md` in export |
 | **Claim evidence** | [`docs/PUBLIC_CLAIM_MATRIX.md`](./PUBLIC_CLAIM_MATRIX.md) |
@@ -249,6 +250,50 @@ Notes:
 - `README.public.md` is renamed to `README.md` in the export.
 - `EXPORT_MANIFEST.json` is generated at dest root for audit (include or exclude from the public commit by choice; prefer **commit it** so reviewers can see export provenance, or omit if you want a pure product tree — decide once and document).
 
+### 3.1 Ongoing refresh (export → public repo)
+
+After the public repo exists, prefer the automated pipeline over hand-copying:
+
+```bash
+# From private monorepo root
+# 1) Export + overlay into public clone + local commit (no network push)
+pnpm sync:public
+
+# Defaults:
+#   --dest /tmp/runbook-public-export
+#   --repo https://github.com/ashlrai/runbook-control-plane.git
+#   clone path: /tmp/runbook-control-plane-clone
+
+# 2) Same steps, then git push (requires network + credentials)
+pnpm sync:public:push
+
+# Explicit local public checkout
+node scripts/sync-public-repo.mjs \
+  --dest /tmp/runbook-public-export \
+  --repo /path/to/runbook-control-plane
+
+# Explicit URL (clones/updates /tmp/runbook-control-plane-clone)
+node scripts/sync-public-repo.mjs \
+  --repo https://github.com/ashlrai/runbook-control-plane.git \
+  --push
+```
+
+What `pnpm sync:public` does:
+
+1. Spawns `node scripts/public-export.mjs --dest <dest>`
+2. If `--repo` is a local path with `.git`, rsync/cp the export over it (excludes `.git`)
+3. If `--repo` is a URL and `/tmp/runbook-control-plane-clone` is missing, clones there
+4. Commits with message `Sync public export from private monorepo YYYY-MM-DD` (UTC date)
+5. Pushes only when `--push` / `pnpm sync:public:push` is used
+
+Safety:
+
+- Refuses private monorepo paths as `--dest` or `--repo`
+- Refuses a checkout whose remote is `ashlrai/runbook` (private), not `runbook-control-plane`
+- Does **not** modify private monorepo git state
+
+Still complete human gates in §2 before any public push of new material.
+
 ---
 
 ## 4. New public repo creation
@@ -459,9 +504,9 @@ gh run list -R ashlrai/runbook-control-plane --limit 5
 Only paths listed under `include` in the allowlist are copied. When adding public surface later:
 
 1. Update allowlist in the private monorepo.
-2. Re-run `pnpm export:public`.
-3. Diff export vs last public commit.
-4. Push to **public** repo only after §1–§2 gates.
+2. Re-run `pnpm export:public` (or `pnpm sync:public` to export + commit in one step).
+3. Diff export vs last public commit (`cd /tmp/runbook-control-plane-clone && git show`).
+4. Push to **public** repo only after §1–§2 gates (`pnpm sync:public:push` or manual `git push`).
 
 ---
 
@@ -520,6 +565,7 @@ git push --force origin main   # coordinate; rewrites public history
 | Gates | [`RELEASE.md`](../RELEASE.md) |
 | Claims | [`docs/PUBLIC_CLAIM_MATRIX.md`](./PUBLIC_CLAIM_MATRIX.md) |
 | Export | `pnpm export:public` |
+| Sync public repo | `pnpm sync:public` / `pnpm sync:public:push` → [`scripts/sync-public-repo.mjs`](../scripts/sync-public-repo.mjs) |
 | Allowlist | [`scripts/public-export-allowlist.json`](../scripts/public-export-allowlist.json) |
 | Elite smoke | `pnpm demo:elite` + `pnpm test:elite-journey` (+ package tests in workflow) |
 | Public README source | [`README.public.md`](../README.public.md) |

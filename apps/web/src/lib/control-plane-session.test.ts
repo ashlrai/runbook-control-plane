@@ -10,11 +10,18 @@ import {
   browserCharterDigest,
   checkObservedToolsAgainstPin,
   elitePolicy,
+  parseSessionIdQuery,
+  refineCharterIntoSession,
+  resolveSessionCharterSeed,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
+  shadowLabHrefForSession,
+  shadowTrendFromSession,
   weakPolicy,
+  writeShadowLoopToSession,
 } from "./control-plane-session";
 import { DOSSIER_COUNTS } from "./dossier-status-data";
+import { evaluateCurriculum, runRefinementLoop } from "./shadow-lab-browser";
 
 describe("control-plane-session browser adapter", () => {
   beforeEach(() => {
@@ -125,5 +132,160 @@ describe("control-plane-session browser adapter", () => {
     await store.setInventoryEnforcement("CPS-A", "warn");
     const list = store.list();
     expect(list.map((s) => s.sessionId)).toEqual(["CPS-A", "CPS-B"]);
+  });
+});
+
+describe("Session ↔ Shadow Lab binding helpers", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("builds deep-link href and parses sessionId query (fail-closed on junk)", () => {
+    expect(shadowLabHrefForSession("CPS-ABC-001")).toBe(
+      "/shadow-lab?sessionId=CPS-ABC-001",
+    );
+    expect(parseSessionIdQuery("?sessionId=CPS-ABC-001")).toBe("CPS-ABC-001");
+    expect(parseSessionIdQuery("sessionId=CPS-ABC-001")).toBe("CPS-ABC-001");
+    expect(parseSessionIdQuery(new URLSearchParams("sessionId=CPS-ABC-001"))).toBe(
+      "CPS-ABC-001",
+    );
+    expect(parseSessionIdQuery("?other=1")).toBeNull();
+    expect(parseSessionIdQuery("?sessionId=")).toBeNull();
+    expect(parseSessionIdQuery("?sessionId=bad id with spaces")).toBeNull();
+    expect(parseSessionIdQuery(null)).toBeNull();
+    expect(parseSessionIdQuery(undefined)).toBeNull();
+  });
+
+  it("resolves charter seed from session or weak fallback", () => {
+    const withCharter = resolveSessionCharterSeed({ charter: elitePolicy() });
+    expect(withCharter.usedWeakFallback).toBe(false);
+    expect(withCharter.seed.capitalBudget).toBe(elitePolicy().capitalBudget);
+
+    const noCharter = resolveSessionCharterSeed({});
+    expect(noCharter.usedWeakFallback).toBe(true);
+    expect(noCharter.seed.capitalBudget).toBe(weakPolicy().capitalBudget);
+
+    const missing = resolveSessionCharterSeed(null);
+    expect(missing.usedWeakFallback).toBe(true);
+  });
+
+  it("maps shadow trend points from session generations", async () => {
+    const store = new BrowserSessionStore();
+    await store.create({
+      sessionId: "CPS-TREND",
+      label: "Trend",
+      charterSeed: "weak",
+    });
+    await store.recordShadowGeneration("CPS-TREND", {
+      generation: 1,
+      hardFalseAllows: 4,
+      hardFalseDenies: 1,
+      recordedAt: "2026-07-23T00:00:00.000Z",
+    });
+    await store.recordShadowGeneration("CPS-TREND", {
+      generation: 2,
+      hardFalseAllows: 0,
+      hardFalseDenies: 0,
+      recordedAt: "2026-07-23T00:01:00.000Z",
+    });
+    const trend = shadowTrendFromSession(store.read("CPS-TREND"));
+    expect(trend).toHaveLength(2);
+    expect(trend[0]).toMatchObject({
+      generation: 1,
+      hardFalseAllows: 4,
+      hardFalseDenies: 1,
+    });
+    expect(trend[1]?.hardFalseAllows).toBe(0);
+  });
+
+  it("writeShadowLoopToSession sets charter and records generations", async () => {
+    const store = new BrowserSessionStore();
+    await store.create({
+      sessionId: "CPS-WRITE",
+      label: "Write back",
+      charterSeed: "weak",
+    });
+
+    const seed = weakPolicy();
+    expect(evaluateCurriculum(seed).metrics.hardFalseAllows).toBeGreaterThan(0);
+
+    const history = runRefinementLoop({
+      seed,
+      maxGenerations: 4,
+      untilFixedPoint: true,
+    });
+    const final = history[history.length - 1]!;
+    expect(final.metrics.hardFalseAllows).toBe(0);
+
+    const result = await writeShadowLoopToSession({
+      sessionId: "CPS-WRITE",
+      history,
+      store,
+    });
+
+    expect(result.charterUpdated).toBe(true);
+    expect(result.generationsRecorded).toBeGreaterThan(0);
+    expect(result.finalHardFalseAllows).toBe(0);
+    expect(result.finalHardFalseDenies).toBe(0);
+    expect(result.session.charterDigest).toBe(charterDigest(final.policy));
+    expect(result.session.lastShadowHardFalseAllows).toBe(0);
+    expect(result.session.shadowGenerations.length).toBe(result.generationsRecorded);
+    expect(result.session.shadowGenerations[0]?.generation).toBe(1);
+  });
+
+  it("refineCharterIntoSession runs loop on weak seed when charter missing", async () => {
+    const store = new BrowserSessionStore();
+    await store.create({
+      sessionId: "CPS-REFINE-NONE",
+      label: "No charter",
+      charterSeed: "none",
+    });
+    expect(store.read("CPS-REFINE-NONE").charter).toBeUndefined();
+
+    const result = await refineCharterIntoSession({
+      sessionId: "CPS-REFINE-NONE",
+      store,
+      maxGenerations: 4,
+    });
+
+    expect(result.usedWeakFallback).toBe(true);
+    expect(result.charterUpdated).toBe(true);
+    expect(result.session.charter).toBeDefined();
+    expect(result.finalHardFalseAllows).toBe(0);
+    expect(result.session.shadowGenerations.length).toBeGreaterThan(0);
+    expect(result.history.length).toBeGreaterThan(0);
+  });
+
+  it("refineCharterIntoSession continues generation numbering across runs", async () => {
+    const store = new BrowserSessionStore();
+    await store.create({
+      sessionId: "CPS-REFINE-2",
+      label: "Rerun",
+      charterSeed: "weak",
+    });
+
+    const first = await refineCharterIntoSession({
+      sessionId: "CPS-REFINE-2",
+      store,
+      maxGenerations: 4,
+    });
+    expect(first.usedWeakFallback).toBe(false);
+    const firstCount = first.session.shadowGenerations.length;
+    expect(firstCount).toBeGreaterThan(0);
+
+    // Second run on now-clean elite-ish charter still records a seed summary point.
+    const second = await refineCharterIntoSession({
+      sessionId: "CPS-REFINE-2",
+      store,
+      maxGenerations: 2,
+    });
+    expect(second.session.shadowGenerations.length).toBeGreaterThan(firstCount);
+    const gens = second.session.shadowGenerations.map((g) => g.generation);
+    expect(gens).toEqual([...gens].sort((a, b) => a - b));
+    expect(new Set(gens).size).toBe(gens.length);
   });
 });

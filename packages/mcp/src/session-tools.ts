@@ -3,18 +3,15 @@
  * Depends on @runbook/session. No broker, no credentials, no composite score.
  */
 
-import { isAbsolute, resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { riskPolicySchema } from "@runbook/engine/schema";
 import {
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   createCallerAssertedApproval,
-  defaultSessionRoot,
   generateApprovalKeyPair,
   inventoryPinSchema,
   newId,
-  SessionStore,
   signApprovalIntent,
   signedApprovalIntentSchema,
   toolSetSha256FromEntries,
@@ -25,6 +22,12 @@ import {
 import * as z from "zod/v4";
 import type { OfflineToolsOptions } from "./offline-tools.js";
 import { withToolErrors } from "./protocol.js";
+import {
+  activeSessionMarkerPath,
+  resolveDataDir,
+  resolveSessionStore,
+  writeActiveSession,
+} from "./session-context.js";
 
 const offlineAnnotations = {
   readOnlyHint: true,
@@ -62,25 +65,8 @@ function jsonSafe<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function resolveSessionRoot(options?: OfflineToolsOptions): string {
-  if (options?.dataDir !== undefined && options.dataDir.length > 0) {
-    if (!isAbsolute(options.dataDir)) {
-      throw new Error("path.invalid");
-    }
-    return defaultSessionRoot(resolve(options.dataDir));
-  }
-  const fromEnv = process.env.RUNBOOK_DATA_DIR;
-  if (fromEnv !== undefined && fromEnv.length > 0) {
-    if (!isAbsolute(fromEnv)) {
-      throw new Error("path.invalid");
-    }
-    return defaultSessionRoot(resolve(fromEnv));
-  }
-  return defaultSessionRoot();
-}
-
-function getStore(options?: OfflineToolsOptions): SessionStore {
-  return new SessionStore({ rootDir: resolveSessionRoot(options) });
+function getStore(options?: OfflineToolsOptions) {
+  return resolveSessionStore(options);
 }
 
 function buildOperatorInventoryPin(toolNames: readonly string[]): InventoryPin {
@@ -122,6 +108,48 @@ const sessionOutputFields = {
 } as const;
 
 export function registerSessionTools(server: McpServer, options?: OfflineToolsOptions): void {
+  server.registerTool(
+    "runbook_session_use",
+    {
+      title: "Use Control Plane Session",
+      description:
+        "Mark a local control-plane session as active by writing dataDir/active-session.json. Subsequent mutating tools pick it up when sessionId is omitted (also honors env RUNBOOK_SESSION_ID). Local marker only; not broker authorization; brokerEffect false.",
+      inputSchema: {
+        sessionId: sessionIdSchema,
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.session-use.v1"),
+        sessionId: z.string(),
+        markerPath: z.string(),
+        dataDir: z.string(),
+        active: z.literal(true),
+        brokerEffect: z.literal(false),
+        compositeScore: z.literal(false),
+        capitalAtRisk: z.literal(0),
+        limitations: z.array(z.string()),
+      },
+      annotations: mutatingAnnotations,
+    },
+    withToolErrors(async ({ sessionId }) => {
+      const store = getStore(options);
+      // Ensure the session exists before marking active.
+      await store.read(sessionId);
+      const dataDir = resolveDataDir(options);
+      const marker = await writeActiveSession(dataDir, sessionId);
+      return {
+        schemaVersion: "runbook.session-use.v1" as const,
+        sessionId: marker.sessionId,
+        markerPath: activeSessionMarkerPath(dataDir),
+        dataDir,
+        active: true as const,
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        capitalAtRisk: 0 as const,
+        limitations: [...SESSION_LIMITATIONS, "active-session-marker-local-only"],
+      };
+    }),
+  );
+
   server.registerTool(
     "runbook_session_create",
     {
@@ -348,6 +376,54 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
         ...check,
         sessionId,
         limitations: [...SESSION_LIMITATIONS, "fail-closed-on-unknown-tools-when-enforced"],
+      };
+    }),
+  );
+
+  server.registerTool(
+    "runbook_session_bind_experiment",
+    {
+      title: "Bind Session to Local Ledger Experiment",
+      description:
+        "Bind a control-plane session to a local ledger experimentId (optional ledgerHeadHash). Local id linkage only — not brokerage account binding, not trade authorization, not credentials.",
+      inputSchema: {
+        sessionId: sessionIdSchema,
+        experimentId: z.string().trim().min(1).max(120),
+        ledgerHeadHash: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      },
+      outputSchema: {
+        schemaVersion: z.literal("runbook.session-bind-experiment.v1"),
+        sessionId: z.string(),
+        experimentId: z.string(),
+        ledgerHeadHash: z.string().nullable(),
+        ...sessionOutputFields,
+      },
+      annotations: mutatingAnnotations,
+    },
+    withToolErrors(async ({ sessionId, experimentId, ledgerHeadHash }) => {
+      const store = getStore(options);
+      const session = await store.bindExperiment(
+        sessionId,
+        experimentId,
+        ledgerHeadHash,
+      );
+      return {
+        schemaVersion: "runbook.session-bind-experiment.v1" as const,
+        sessionId: session.sessionId,
+        experimentId: session.experimentId as string,
+        ledgerHeadHash: session.ledgerHeadHash ?? null,
+        session: jsonSafe(session),
+        brokerEffect: false as const,
+        compositeScore: false as const,
+        capitalAtRisk: 0 as const,
+        limitations: [
+          ...SESSION_LIMITATIONS,
+          "local-experiment-id-bind-only",
+          "not-brokerage-account-linkage",
+        ],
       };
     }),
   );

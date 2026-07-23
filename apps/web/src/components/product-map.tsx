@@ -106,9 +106,9 @@ export function ProductMap() {
           <p className={styles.eyebrow}>Runbook · financial agent safety with evidence</p>
           <h1 id="product-map-title">Four doors. Zero credentials. Exact receipts.</h1>
           <p className={styles.lede}>
-            Builders use Runbook to bind control-plane evidence, stress-test agent control paths,
-            verify portable proof packages, and record human-owned experiments beside a brokerage
-            agent—never inside one.
+            Session is the spine. Builders use Runbook to bind control-plane evidence, stress-test
+            agent control paths, verify portable proof packages, and record human-owned experiments
+            beside a brokerage agent—never inside one.
           </p>
         </div>
 

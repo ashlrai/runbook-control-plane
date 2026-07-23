@@ -16,6 +16,7 @@ describe("Product map landing", () => {
     expect(boundary).toContain("NO COMPOSITE SAFETY SCORE");
 
     expect(screen.getByRole("heading", { name: /Four doors/i })).toBeTruthy();
+    expect(document.body.textContent ?? "").toMatch(/Session is the spine/i);
     const sessionDoors = screen.getAllByRole("link", { name: /Control Plane Session/i });
     expect(sessionDoors[0]?.getAttribute("href")).toBe("/session");
     expect(screen.getByRole("link", { name: /Break the agent safely/i }).getAttribute("href")).toBe(

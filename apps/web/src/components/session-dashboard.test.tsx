@@ -3,7 +3,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionDashboard } from "./session-dashboard";
-import { BROWSER_SESSION_STORAGE_KEY } from "../lib/control-plane-session";
+import {
+  BROWSER_SESSION_STORAGE_KEY,
+  browserSessionStore,
+} from "../lib/control-plane-session";
 
 afterEach(() => {
   cleanup();
@@ -33,6 +36,39 @@ describe("Session dashboard", () => {
 
     const text = document.body.textContent ?? "";
     expect(text).not.toMatch(/100\/100|agent certified|buyer-ready certified|safety score:/i);
+  });
+
+  it("runs refine into session, shows HFA/HFD trend, and deep-links Shadow Lab", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "weak" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Refine bind demo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Refine bind demo/i })).toBeTruthy();
+    });
+
+    const sessionId = browserSessionStore.list()[0]!.sessionId;
+    expect(
+      screen.getByRole("link", { name: /Open in Shadow Lab/i }).getAttribute("href"),
+    ).toBe(`/shadow-lab?sessionId=${sessionId}`);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run refine into session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Shadow HFA HFD trend")).toBeTruthy();
+      expect(screen.getByText(/charter updated · not investment skill/i)).toBeTruthy();
+    });
+
+    const session = browserSessionStore.read(sessionId);
+    expect(session.shadowGenerations.length).toBeGreaterThan(0);
+    expect(session.lastShadowHardFalseAllows).toBe(0);
+    expect(session.charter).toBeDefined();
   });
 
   it("creates a session, pins inventory, fail-closes sample check, attaches dossier, exports pack", async () => {

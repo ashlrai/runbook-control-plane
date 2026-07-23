@@ -17,8 +17,15 @@ import {
   runShadowTournament,
 } from "@runbook/shadow-lab";
 import * as z from "zod/v4";
+import type { OfflineToolsOptions } from "./offline-tools.js";
 import { withToolErrors } from "./protocol.js";
 import type { RunbookService } from "./service.js";
+import {
+  appendSessionNote,
+  resolveSessionId,
+  resolveSessionStore,
+  withSession,
+} from "./session-context.js";
 
 const actorShape = {
   type: z.enum(["human", "agent", "system", "broker-import"]),
@@ -373,16 +380,27 @@ export function evaluateAgentProcess(
   };
 }
 
-export function registerShadowTools(server: McpServer, service: RunbookService): void {
+const optionalSessionIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/)
+  .optional();
+
+export function registerShadowTools(
+  server: McpServer,
+  service: RunbookService,
+  options?: OfflineToolsOptions,
+): void {
   server.registerTool(
     "runbook_run_shadow_curriculum",
     {
       title: "Run Shadow Curriculum",
       description:
-        "Evaluate a RiskPolicy against the closed synthetic shadow curriculum (multi-axis process metrics). Default policy: override if provided, else active ledger charter for experimentId, else reference elite equity policy. Offline only; brokerEffect false; no composite score; not trading performance.",
+        "Evaluate a RiskPolicy against the closed synthetic shadow curriculum (multi-axis process metrics). Default policy: override if provided, else active ledger charter for experimentId, else reference elite equity policy. Optional sessionId (or active session via RUNBOOK_SESSION_ID / active-session.json) records metrics as a session note. Offline only; brokerEffect false; no composite score; not trading performance.",
       inputSchema: {
         experimentId: z.string().trim().min(1).max(120).optional(),
         policy: riskPolicySchema.optional(),
+        sessionId: optionalSessionIdSchema,
       },
       outputSchema: {
         schemaVersion: z.literal("runbook.shadow-curriculum-report.v1"),
@@ -394,6 +412,8 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
         trueDenies: z.number().int().nonnegative(),
         advisoryGaps: z.number().int().nonnegative(),
         scenarioCount: z.number().int().nonnegative(),
+        sessionId: z.string().optional(),
+        sessionUpdated: z.boolean(),
         compositeScore: z.literal(false),
         brokerEffect: z.literal(false),
         assurance: z.literal("synthetic-curriculum-process-quality-only"),
@@ -405,6 +425,25 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
     withToolErrors(async (input) => {
       const resolved = await resolvePolicy(service, input);
       const report = evaluateCharter(resolved.policy);
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      const store = resolveSessionStore(options);
+      let sessionUpdated = false;
+      await withSession(sessionId, store, async (id, s) => {
+        await appendSessionNote(
+          s,
+          id,
+          `shadow-curriculum: HFA=${report.metrics.hardFalseAllows} HFD=${report.metrics.hardFalseDenies} scenarios=${report.scenarioCount}`,
+        );
+        // Record as generation 1 when no shadow gens yet; else next index.
+        const current = await s.read(id);
+        const nextGen = Math.max(1, current.shadowGenerations.length + 1);
+        await s.recordShadowGeneration(id, {
+          generation: nextGen,
+          hardFalseAllows: report.metrics.hardFalseAllows,
+          hardFalseDenies: report.metrics.hardFalseDenies,
+        });
+        sessionUpdated = true;
+      });
       return {
         schemaVersion: "runbook.shadow-curriculum-report.v1" as const,
         policySource: resolved.source,
@@ -415,6 +454,8 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
         trueDenies: report.metrics.trueDenies,
         advisoryGaps: report.metrics.advisoryGaps,
         scenarioCount: report.scenarioCount,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        sessionUpdated,
         compositeScore: false as const,
         brokerEffect: false as const,
         assurance: "synthetic-curriculum-process-quality-only" as const,
@@ -429,11 +470,12 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
     {
       title: "Improve Charter (Shadow Refine)",
       description:
-        "Run recursive deterministic charter refinement against the synthetic curriculum offline. Returns generations and finalPolicy. Does NOT activate the refined charter on the ledger — use runbook_activate_refined_charter explicitly. Not trading performance or capital allocation.",
+        "Run recursive deterministic charter refinement against the synthetic curriculum offline. Returns generations and finalPolicy. Does NOT activate the refined charter on the ledger — use runbook_activate_refined_charter explicitly. Optional sessionId (or active session) records final hardFalseAllows/Denies and may setCharter on the session when improved. Not trading performance or capital allocation.",
       inputSchema: {
         experimentId: z.string().trim().min(1).max(120).optional(),
         policy: riskPolicySchema.optional(),
         maxGenerations: z.number().int().min(1).max(8).optional(),
+        sessionId: optionalSessionIdSchema,
       },
       outputSchema: {
         schemaVersion: z.literal("runbook.shadow-recursive-improvement.v1"),
@@ -449,6 +491,9 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
         terminatedReason: z.enum(["fixed-point", "max-generations"]),
         maxGenerations: z.number().int().min(1).max(8),
         generationCount: z.number().int().nonnegative(),
+        sessionId: z.string().optional(),
+        sessionUpdated: z.boolean(),
+        sessionCharterSet: z.boolean(),
         compositeScore: z.literal(false),
         brokerEffect: z.literal(false),
         notTradingPerformance: z.literal(true),
@@ -463,6 +508,27 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
       const resolved = await resolvePolicy(service, input);
       const maxGenerations = input.maxGenerations ?? 3;
       const result = runRecursiveImprovement(resolved.policy, maxGenerations);
+      const sessionId = await resolveSessionId(input.sessionId, options);
+      const store = resolveSessionStore(options);
+      let sessionUpdated = false;
+      let sessionCharterSet = false;
+      await withSession(sessionId, store, async (id, s) => {
+        const gen = Math.max(1, result.generationCount);
+        await s.recordShadowGeneration(id, {
+          generation: gen,
+          hardFalseAllows: result.finalMetrics.hardFalseAllows,
+          hardFalseDenies: result.finalMetrics.hardFalseDenies,
+        });
+        sessionUpdated = true;
+        const improved =
+          result.finalMetrics.hardFalseAllows < result.initialMetrics.hardFalseAllows ||
+          result.finalMetrics.hardFalseDenies < result.initialMetrics.hardFalseDenies ||
+          result.terminatedReason === "fixed-point";
+        if (improved) {
+          await s.setCharter(id, result.finalPolicy);
+          sessionCharterSet = true;
+        }
+      });
       return {
         schemaVersion: "runbook.shadow-recursive-improvement.v1" as const,
         policySource: resolved.source,
@@ -477,6 +543,9 @@ export function registerShadowTools(server: McpServer, service: RunbookService):
         terminatedReason: result.terminatedReason,
         maxGenerations: result.maxGenerations,
         generationCount: result.generationCount,
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        sessionUpdated,
+        sessionCharterSet,
         compositeScore: false as const,
         brokerEffect: false as const,
         notTradingPerformance: true as const,

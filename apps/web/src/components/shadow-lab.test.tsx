@@ -1,12 +1,24 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShadowLab } from "./shadow-lab";
+import {
+  BROWSER_SESSION_STORAGE_KEY,
+  browserSessionStore,
+  weakPolicy,
+} from "../lib/control-plane-session";
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.unstubAllGlobals();
+  window.history.replaceState({}, "", "/shadow-lab");
+});
+
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState({}, "", "/shadow-lab");
 });
 
 describe("Shadow Process Lab", () => {
@@ -155,5 +167,39 @@ describe("Shadow Process Lab", () => {
     fireEvent.click(screen.getByRole("button", { name: /Re-evaluate working policy/i }));
     expect(screen.getByLabelText("Merged curriculum evaluation")).toBeTruthy();
     expect(screen.getByLabelText("Meta hard false allows")).toBeTruthy();
+  });
+
+  it("binds ?sessionId= charter and writes fixed-point results back to session", async () => {
+    const session = await browserSessionStore.create({
+      sessionId: "CPS-SHADOW-BIND",
+      label: "Shadow bind",
+      charter: weakPolicy(),
+    });
+    expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain("CPS-SHADOW-BIND");
+    window.history.replaceState({}, "", `/shadow-lab?sessionId=${session.sessionId}`);
+
+    render(<ShadowLab />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Bound session banner").textContent).toMatch(
+        /Bound to session CPS-SHADOW-BIND/i,
+      );
+    });
+
+    // Weak charter should still show false-allows before refine.
+    expect(screen.getByLabelText("Hard false allows").textContent).toMatch(/[1-9]/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run until fixed point/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Hard false allows").textContent).toMatch(/0/);
+    });
+
+    await waitFor(() => {
+      const updated = browserSessionStore.read("CPS-SHADOW-BIND");
+      expect(updated.shadowGenerations.length).toBeGreaterThan(0);
+      expect(updated.lastShadowHardFalseAllows).toBe(0);
+      expect(updated.charter).toBeDefined();
+    });
   });
 });

@@ -147,6 +147,7 @@ describe("shadow self-improvement MCP tools", () => {
     expect(before.isError).not.toBe(true);
     expect(structured(before).policySource).toBe("override");
     expect(structured(before).hardFalseAllows as number).toBeGreaterThan(0);
+    expect(structured(before).sessionUpdated).toBe(false);
 
     const improve = await harness.client.callTool({
       name: "runbook_improve_charter",
@@ -158,6 +159,8 @@ describe("shadow self-improvement MCP tools", () => {
       schemaVersion: "runbook.shadow-recursive-improvement.v1",
       policySource: "override",
       activatedOnLedger: false,
+      sessionUpdated: false,
+      sessionCharterSet: false,
       compositeScore: false,
       brokerEffect: false,
       notTradingPerformance: true,
@@ -172,6 +175,73 @@ describe("shadow self-improvement MCP tools", () => {
     // Improve must not write the ledger.
     const events = await harness.service.listEvents();
     expect(events).toHaveLength(0);
+  });
+
+  it("binds shadow curriculum and improve results to a control-plane session", async () => {
+    // Harness server was created without dataDir; re-bind tools via a dataDir-aware server.
+    await harness.client.close();
+    await harness.server.close();
+    const { createRunbookServer } = await import("./server-factory.js");
+    const server = createRunbookServer(harness.service, { dataDir: harness.directory });
+    const client = new Client({ name: "runbook-shadow-session-bind", version: "0.1.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+    harness.client = client;
+    harness.server = server;
+
+    await client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-SHADOW-BIND",
+        label: "Shadow bind test",
+        policy: WEAK_STARTER_POLICY,
+      },
+    });
+
+    const curriculum = await client.callTool({
+      name: "runbook_run_shadow_curriculum",
+      arguments: { policy: WEAK_STARTER_POLICY, sessionId: "CPS-SHADOW-BIND" },
+    });
+    expect(curriculum.isError).not.toBe(true);
+    expect(structured(curriculum)).toMatchObject({
+      sessionId: "CPS-SHADOW-BIND",
+      sessionUpdated: true,
+      brokerEffect: false,
+    });
+    expect(structured(curriculum).hardFalseAllows as number).toBeGreaterThan(0);
+
+    const improve = await client.callTool({
+      name: "runbook_improve_charter",
+      arguments: {
+        policy: WEAK_STARTER_POLICY,
+        maxGenerations: 6,
+        sessionId: "CPS-SHADOW-BIND",
+      },
+    });
+    expect(improve.isError).not.toBe(true);
+    expect(structured(improve)).toMatchObject({
+      sessionId: "CPS-SHADOW-BIND",
+      sessionUpdated: true,
+      sessionCharterSet: true,
+      finalHardFalseAllows: 0,
+      brokerEffect: false,
+    });
+
+    const got = await client.callTool({
+      name: "runbook_session_get",
+      arguments: { sessionId: "CPS-SHADOW-BIND" },
+    });
+    expect(got.isError).not.toBe(true);
+    const session = structured(got).session as {
+      lastShadowHardFalseAllows?: number;
+      notes: string[];
+      charter?: RiskPolicy;
+      shadowGenerations: unknown[];
+    };
+    expect(session.lastShadowHardFalseAllows).toBe(0);
+    expect(session.shadowGenerations.length).toBeGreaterThanOrEqual(1);
+    expect(session.notes.some((n) => n.includes("shadow-curriculum"))).toBe(true);
+    expect(session.charter?.approvalRequired).toBe(true);
   });
 
   it("loads active charter policy from the ledger when experimentId is provided", async () => {

@@ -206,6 +206,16 @@
       "openWorldHint": false
     },
     {
+      "name": "runbook_session_use",
+      "effect": "local-active-session-marker",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Writes active-session.json marker only. Not broker authorization."
+    },
+    {
       "name": "runbook_session_get",
       "effect": "local-control-plane-session-read",
       "brokerEffect": false,
@@ -251,6 +261,16 @@
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "Fail-closed by session.inventoryEnforcement when pin is present."
+    },
+    {
+      "name": "runbook_session_bind_experiment",
+      "effect": "local-session-experiment-bind",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Binds local ledger experimentId (optional head hash). Not brokerage account linkage."
     },
     {
       "name": "runbook_session_attach_dossier",
@@ -309,6 +329,7 @@
     "runbook://demos/shadow-pilot",
     "runbook://demos/shadow-self-improve",
     "runbook://playbooks/recursive-elite-process",
+    "runbook://playbooks/control-plane-session",
     "runbook://status/dossier",
     "runbook://docs/control-plane-session",
     "runbook://ledger/verification"
@@ -321,6 +342,7 @@
     "runbook_offline_frontier_demo",
     "runbook_recursive_improve",
     "runbook_elite_recursive_loop",
-    "runbook_control_plane_session"
+    "runbook_control_plane_session",
+    "runbook_control_plane_full"
   ]
 }

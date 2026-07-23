@@ -102,6 +102,68 @@
 
 .banner p { margin: 0; max-width: 920px; color: #a8b6cc; }
 
+.sessionBoundBanner {
+  margin: 0;
+  padding: 12px clamp(20px, 4vw, 64px);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #d8f3e6;
+  background: linear-gradient(90deg, #0f2a22, #10201c);
+  border-bottom: 1px solid #1f4a3a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sessionBoundBanner[data-tone="warn"] {
+  color: #f3e4c8;
+  background: linear-gradient(90deg, #2a2110, #201910);
+  border-bottom-color: #4a3a1f;
+}
+
+.sessionBoundBanner strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #7dffa8;
+  font: 700 9px/1 var(--font-mono), monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.sessionBoundBanner[data-tone="warn"] strong {
+  color: #ffd27a;
+}
+
+.sessionBoundBanner p {
+  margin: 0;
+  max-width: 820px;
+  color: #a8c4b6;
+}
+
+.sessionBoundBanner[data-tone="warn"] p {
+  color: #c4b49a;
+}
+
+.sessionBoundLink {
+  margin-left: auto;
+  align-self: center;
+  min-height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #2f6a52;
+  color: #b8f0d0;
+  font: 650 10px/1 var(--font-mono), monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sessionBoundLink:hover {
+  border-color: #7dffa8;
+  color: #fff;
+}
+
 .hero {
   padding: 36px clamp(20px, 4vw, 64px) 24px;
   display: grid;

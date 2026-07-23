@@ -21,6 +21,11 @@ import type {
 } from "@runbook/session";
 import { REFERENCE_ELITE_POLICY, WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import { DOSSIER_COUNTS, PROCESS_BRIDGED_IDS } from "./dossier-status-data";
+import {
+  clonePolicy as cloneShadowPolicy,
+  runRefinementLoop,
+  type GenerationRecord,
+} from "./shadow-lab-browser";
 
 export const BROWSER_SESSION_STORAGE_KEY = "runbook.control-plane-sessions.v1" as const;
 
@@ -526,4 +531,164 @@ export function downloadEvidencePack(pack: SessionEvidencePack): void {
   URL.revokeObjectURL(url);
 }
 
-export type { ControlPlaneSession, DossierAttachment, InventoryCheckResult, InventoryPin, SessionEvidencePack };
+// ── Session ↔ Shadow Lab binding ────────────────────────────────────────────
+
+const SESSION_ID_QUERY_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$/;
+
+/** Deep-link into Shadow Lab bound to a Control Plane Session. */
+export function shadowLabHrefForSession(sessionId: string): string {
+  return `/shadow-lab?sessionId=${encodeURIComponent(sessionId)}`;
+}
+
+/**
+ * Parse `sessionId` from a query string / URLSearchParams.
+ * Returns null when missing or not a valid session id shape.
+ */
+export function parseSessionIdQuery(
+  search: string | URLSearchParams | null | undefined,
+): string | null {
+  if (search == null) return null;
+  const params =
+    typeof search === "string"
+      ? new URLSearchParams(search.startsWith("?") ? search.slice(1) : search)
+      : search;
+  const raw = (params.get("sessionId") ?? "").trim();
+  if (!raw || !SESSION_ID_QUERY_RE.test(raw)) return null;
+  return raw;
+}
+
+/**
+ * Prefer the session charter; fall back to weak starter so refine has work to do.
+ */
+export function resolveSessionCharterSeed(
+  session: Pick<ControlPlaneSession, "charter"> | null | undefined,
+  fallback: RiskPolicy = weakPolicy(),
+): { seed: RiskPolicy; usedWeakFallback: boolean } {
+  if (session?.charter) {
+    return { seed: clonePolicy(session.charter), usedWeakFallback: false };
+  }
+  return { seed: clonePolicy(fallback), usedWeakFallback: true };
+}
+
+/** Live HFA/HFD trend points from session.shadowGenerations (process metrics only). */
+export function shadowTrendFromSession(
+  session: Pick<ControlPlaneSession, "shadowGenerations">,
+): ReadonlyArray<{
+  generation: number;
+  hardFalseAllows: number;
+  hardFalseDenies: number;
+  recordedAt: string;
+}> {
+  return session.shadowGenerations.map((row) => ({
+    generation: row.generation,
+    hardFalseAllows: row.hardFalseAllows,
+    hardFalseDenies: row.hardFalseDenies,
+    recordedAt: row.recordedAt,
+  }));
+}
+
+export type WriteShadowLoopResult = {
+  session: ControlPlaneSession;
+  generationsRecorded: number;
+  finalHardFalseAllows: number;
+  finalHardFalseDenies: number;
+  charterUpdated: boolean;
+};
+
+/**
+ * Write a Shadow Lab refinement history back onto a Control Plane Session:
+ * setCharter(final policy) + recordShadowGeneration for each refine step.
+ * Generation numbers continue from the session's existing max (positive ints only).
+ */
+export async function writeShadowLoopToSession(options: {
+  sessionId: string;
+  history: readonly GenerationRecord[];
+  store?: BrowserSessionStore;
+}): Promise<WriteShadowLoopResult> {
+  const store = options.store ?? browserSessionStore;
+  const history = options.history;
+  if (history.length === 0) {
+    throw new Error("writeShadowLoopToSession requires a non-empty generation history.");
+  }
+
+  const final = history[history.length - 1]!;
+  await store.setCharter(options.sessionId, cloneShadowPolicy(final.policy));
+
+  const current = store.read(options.sessionId);
+  const maxExisting = current.shadowGenerations.reduce(
+    (max, row) => Math.max(max, row.generation),
+    0,
+  );
+
+  // Prefer post-seed refine steps; if loop short-circuited on seed, still record one point.
+  const refineSteps = history.filter((row) => row.generation > 0);
+  const rowsToRecord = refineSteps.length > 0 ? refineSteps : [final];
+
+  let nextGen = maxExisting + 1;
+  let generationsRecorded = 0;
+  for (const row of rowsToRecord) {
+    await store.recordShadowGeneration(options.sessionId, {
+      generation: nextGen,
+      hardFalseAllows: row.metrics.hardFalseAllows,
+      hardFalseDenies: row.metrics.hardFalseDenies,
+    });
+    nextGen += 1;
+    generationsRecorded += 1;
+  }
+
+  const session = store.read(options.sessionId);
+  return {
+    session,
+    generationsRecorded,
+    finalHardFalseAllows: final.metrics.hardFalseAllows,
+    finalHardFalseDenies: final.metrics.hardFalseDenies,
+    charterUpdated: true,
+  };
+}
+
+export type RefineIntoSessionResult = WriteShadowLoopResult & {
+  history: GenerationRecord[];
+  usedWeakFallback: boolean;
+};
+
+/**
+ * Run browser `runRefinementLoop` on the session charter (or weak seed) and
+ * persist final charter + shadow generation metrics onto the session.
+ */
+export async function refineCharterIntoSession(options: {
+  sessionId: string;
+  store?: BrowserSessionStore;
+  maxGenerations?: number;
+}): Promise<RefineIntoSessionResult> {
+  const store = options.store ?? browserSessionStore;
+  const session = store.read(options.sessionId);
+  const { seed, usedWeakFallback } = resolveSessionCharterSeed(session);
+  const maxGenerations = Math.min(8, Math.max(1, options.maxGenerations ?? 4));
+
+  const history = runRefinementLoop({
+    seed,
+    maxGenerations,
+    untilFixedPoint: true,
+  });
+
+  const written = await writeShadowLoopToSession({
+    sessionId: options.sessionId,
+    history,
+    store,
+  });
+
+  return {
+    ...written,
+    history,
+    usedWeakFallback,
+  };
+}
+
+export type {
+  ControlPlaneSession,
+  DossierAttachment,
+  InventoryCheckResult,
+  InventoryPin,
+  SessionEvidencePack,
+};
+export type { GenerationRecord };

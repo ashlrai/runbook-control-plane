@@ -362,6 +362,16 @@ export const TOOL_CONTRACT_JSON = `{
       "openWorldHint": false
     },
     {
+      "name": "runbook_session_use",
+      "effect": "local-active-session-marker",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Writes active-session.json marker only. Not broker authorization."
+    },
+    {
       "name": "runbook_session_get",
       "effect": "local-control-plane-session-read",
       "brokerEffect": false,
@@ -407,6 +417,16 @@ export const TOOL_CONTRACT_JSON = `{
       "assurance": "local-session-only",
       "openWorldHint": false,
       "notes": "Fail-closed by session.inventoryEnforcement when pin is present."
+    },
+    {
+      "name": "runbook_session_bind_experiment",
+      "effect": "local-session-experiment-bind",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Binds local ledger experimentId (optional head hash). Not brokerage account linkage."
     },
     {
       "name": "runbook_session_attach_dossier",
@@ -465,6 +485,7 @@ export const TOOL_CONTRACT_JSON = `{
     "runbook://demos/shadow-pilot",
     "runbook://demos/shadow-self-improve",
     "runbook://playbooks/recursive-elite-process",
+    "runbook://playbooks/control-plane-session",
     "runbook://status/dossier",
     "runbook://docs/control-plane-session",
     "runbook://ledger/verification"
@@ -477,7 +498,8 @@ export const TOOL_CONTRACT_JSON = `{
     "runbook_offline_frontier_demo",
     "runbook_recursive_improve",
     "runbook_elite_recursive_loop",
-    "runbook_control_plane_session"
+    "runbook_control_plane_session",
+    "runbook_control_plane_full"
   ]
 }`;
 
@@ -492,6 +514,7 @@ Local **process / evidence** spine shared across MCP, shadow-lab, and dossier at
 - Inventory pin (default: public-docs 50-tool research projection) and fail-closed check
 - Shadow generation metrics and dossier attachments (architecture evidence)
 - Device-key signed approval *intent* helpers (local attestation only)
+- Optional bind to a local ledger \`experimentId\` (not broker account linkage)
 
 ## What it is not
 
@@ -506,21 +529,149 @@ Local **process / evidence** spine shared across MCP, shadow-lab, and dossier at
 | Tool | Role |
 | --- | --- |
 | \`runbook_session_create\` | Create session (label, optional policy / sessionId) |
+| \`runbook_session_use\` | Mark active session (local marker only) |
 | \`runbook_session_get\` | Read session |
 | \`runbook_session_export\` | Evidence pack export |
 | \`runbook_session_set_charter\` | Bind advisory policy + digest |
 | \`runbook_session_pin_inventory\` | Default public-docs pin or custom tool names |
 | \`runbook_session_check_inventory\` | Observed tools vs pin (\`session.inventoryEnforcement\`) |
+| \`runbook_session_bind_experiment\` | Bind local ledger experimentId (+ optional head hash) |
 | \`runbook_session_attach_dossier\` | Attach architecture evidence note |
 | \`runbook_session_record_shadow\` | Record hardFalseAllows / hardFalseDenies |
 | \`runbook_approval_create_signed\` | Ephemeral Ed25519 sign; private key not persisted |
 | \`runbook_approval_verify\` | Verify intent with public SPKI base64 |
 
-## Workflow prompt
+## Full journey playbook
 
-Prefer prompt \`runbook_control_plane_session\`. Always restate \`brokerEffect: false\`, \`capitalAtRisk: 0\`, and no composite score.
+Ambitious end-to-end spine: resource \`runbook://playbooks/control-plane-session\` + prompt \`runbook_control_plane_full\`.
+
+Shorter day-1 session-only path: prompt \`runbook_control_plane_session\`.
+
+Always restate \`brokerEffect: false\`, \`capitalAtRisk: 0\`, and no composite score.
 
 Read \`runbook://docs/boundary\` before mutating tools.
+`;
+
+export const PLAYBOOK_CONTROL_PLANE_SESSION_MD = `# Control plane session — full journey playbook
+
+**URI:** \`runbook://playbooks/control-plane-session\`  
+**Mode:** local control-plane session + optional shadow improve + local ledger experiment. **No network. No broker. No live capital.**  
+**Claim level:** process / evidence spine only — **never** trading performance, alpha, PnL, returns, or broker authorization.
+
+This playbook freezes the **full control-plane session journey** an ambitious agent should run. Follow steps in order. Multi-axis metrics only; never invent a composite safety or skill score.
+
+## Hard rules (NEVER)
+
+1. **NEVER broker** — do not configure Robinhood Trading MCP (or any brokerage MCP); do not call \`place_*\` / \`cancel_*\` (they are not on this surface); do not request credentials or card numbers.
+2. **NEVER returns claims** — do not claim returns, alpha, sharpe, skill, capital allocation quality, or “the agent is profitable.”
+3. **NEVER composite score** — keep ledger, curriculum, inventory, dossier, and approval axes separate.
+4. **NEVER upgrade device-key signatures** — signed approval intent is **local attestation only**. \`humanAuthorityEstablished\` and \`authorizationEstablished\` remain **false**.
+5. **Inventory pin is research projection** — default public-docs 50-tool pin is **not** runtime \`tools/list\` confirmation and **not** broker permission.
+6. **Dossier attachments are architecture evidence** — not certification, not a buyer product pass, not a green safety grade.
+
+## Linked surfaces
+
+| Kind | Name / URI |
+| --- | --- |
+| Prompt (full) | \`runbook_control_plane_full\` |
+| Prompt (shorter) | \`runbook_control_plane_session\` |
+| Docs sibling | \`runbook://docs/control-plane-session\` |
+| Boundary | \`runbook://docs/boundary\`, \`runbook://docs/assurance\` |
+| Equity policy | \`runbook://examples/equity-only-charter-policy\` |
+| Dossier honesty | \`runbook://status/dossier\` |
+| Session tools | \`runbook_session_create\`, \`runbook_session_pin_inventory\`, \`runbook_session_check_inventory\`, \`runbook_session_set_charter\`, \`runbook_session_record_shadow\`, \`runbook_session_bind_experiment\`, \`runbook_session_attach_dossier\`, \`runbook_session_export\`, \`runbook_session_get\` |
+| Shadow | \`runbook_improve_charter\` (optional curriculum first) |
+| Ledger | \`runbook_create_experiment\` |
+| Approval | \`runbook_approval_create_signed\`, \`runbook_approval_verify\` |
+| Package | \`@runbook/session\` |
+
+## Full journey (10 steps)
+
+### 1. session create
+
+- Call \`runbook_session_create\` with a human-readable \`label\` and preferred \`sessionId\` (e.g. \`CPS-FULL-001\`).
+- Prefer equity-only \`policy\` from \`runbook://examples/equity-only-charter-policy\` (\`approvalRequired: true\`, equities only).
+- Expect schema \`runbook.session-create.v1\`, \`brokerEffect: false\`, \`capitalAtRisk: 0\`, \`compositeScore: false\`.
+- Optional: pass a planned \`experimentId\` up front; the full journey still **binds** after ledger create.
+
+### 2. pin inventory
+
+- Call \`runbook_session_pin_inventory\` (default: public-docs 50-tool research pin).
+- Report \`toolCount\` and \`toolSetSha256\`.
+- Restate: not runtime confirmation; not broker authorization.
+
+### 3. check inventory
+
+- Call \`runbook_session_check_inventory\` with a **subset of pinned** names → expect \`ok: true\` under fail-closed enforcement.
+- Call once with an **unknown** tool name (e.g. invent \`place_crypto_order_unknown\`) → expect \`ok: false\`, unknown listed.
+- Do **not** treat a clean check as permission to place trades.
+
+### 4. improve charter
+
+- Call \`runbook_improve_charter\` with the session/equity policy (or a weak starter override) and \`maxGenerations\` 1–8.
+- Capture \`finalPolicy\`, \`finalHardFalseAllows\` (elite target 0), \`fixedPoint\`, \`activatedOnLedger: false\`.
+- Optionally set the refined policy on the session via \`runbook_session_set_charter\` (session charter only — **not** ledger activation).
+- Restate: synthetic process quality only; not trading performance; not capital allocation.
+
+### 5. record shadow
+
+- Call \`runbook_session_record_shadow\` with generation metrics from improve/curriculum (\`hardFalseAllows\`, \`hardFalseDenies\`).
+- Schema \`runbook.session-record-shadow.v1\`. Multi-axis only — no composite score.
+
+### 6. create experiment
+
+- Call \`runbook_create_experiment\` with the refined (or equity-only) policy as the initial local ledger charter.
+- Local ledger write only; advisory; does **not** place trades.
+- Prefer synthetic/agent actor for agent work.
+
+### 7. bind
+
+- Call \`runbook_session_bind_experiment\` with the sessionId and the new ledger \`experimentId\`.
+- Optional: include current ledger head hash if you just verified the chain (\`runbook_verify_ledger\`) — still local-only binding.
+- Binding is **session ↔ local experiment id**, not a brokerage account or live session.
+
+### 8. signed approval demo
+
+- Call \`runbook_approval_create_signed\` with sessionId, experimentId, proposalId, proposalDigest, charterDigest, \`approved: true\`.
+- Expect ephemeral key: \`privateKeyPersisted: false\`, \`humanAuthorityEstablished: false\`, \`authorizationEstablished: false\`, \`assurance: local-device-key-attestation-only\`.
+- Call \`runbook_approval_verify\` with returned \`intent\` + \`publicKeySpkiBase64\` → \`valid: true\` still does **not** establish broker authorization.
+- Never claim the signature is a hard trade gate.
+
+### 9. attach dossier
+
+- Call \`runbook_session_attach_dossier\` with a short status-snapshot summary (architecture evidence).
+- Read \`runbook://status/dossier\` and restate: architecture-slice status only — not a completed buyer product or safety grade.
+
+### 10. export pack
+
+- Call \`runbook_session_export\` → schema \`runbook.session-export.v1\`, pack \`runbook.session-evidence-pack.v1\`.
+- Confirm pack carries \`brokerEffect: false\`, \`compositeScore: false\`, \`notTradingPerformance: true\`, \`assurance: local-control-plane-export-only\`.
+- Final report: process evidence only. **NEVER broker. NEVER returns claims. NEVER composite score.**
+
+## Expected golden signals (protocol freeze)
+
+| Step | Signal |
+| --- | --- |
+| Create | \`runbook.session-create.v1\`, \`capitalAtRisk: 0\` |
+| Pin | \`toolCount: 50\` (default public-docs) or operator-declared count; 64-char \`toolSetSha256\` |
+| Check | subset \`ok: true\`; unknown tool \`ok: false\` fail-closed |
+| Improve | \`finalHardFalseAllows\` reduced / target 0; \`brokerEffect: false\` |
+| Shadow | lastShadow metrics recorded on session |
+| Experiment | local ledger charter activated for experimentId |
+| Bind | session.experimentId matches ledger experiment |
+| Approval | create + verify; authority flags stay false |
+| Dossier | attachmentCount ≥ 1; honest architecture label |
+| Export | evidence pack; not trading performance |
+
+## Limitations (always restate)
+
+- local-session-only / advisory-not-hard-gateway
+- not-trading-performance / not-capital-allocation
+- no-composite-safety-score / no-broker-execution / no-credential-handling
+- inventory pin not runtime-confirmed unless source says so
+- device-key-signed is local attestation only — not broker authorization
+- dossier attachments are architecture-evidence-not-certification
+- experiment bind is local id linkage only — not brokerage account binding
 `;
 
 export const DEMO_CAPABILITY_DRIFT_MD = `# Demo playbook: capability drift (45 → 50) + risk-correction reject
