@@ -19,6 +19,7 @@ export const PROMPT_NAMES = [
   "runbook_elite_recursive_loop",
   "runbook_control_plane_session",
   "runbook_control_plane_full",
+  "runbook_process_supervisor",
 ] as const;
 
 export function registerRunbookPrompts(server: McpServer): void {
@@ -361,6 +362,47 @@ export function registerRunbookPrompts(server: McpServer): void {
                 "8) Signed approval demo: runbook_approval_create_signed (ephemeral key; privateKeyPersisted false) then runbook_approval_verify. humanAuthorityEstablished and authorizationEstablished remain false — never claim broker authorization.",
                 "9) runbook_session_attach_dossier with architecture status-snapshot summary (not certification).",
                 "10) runbook_session_export — evidence pack only. Final report: NEVER broker, NEVER returns/alpha/skill claims, NEVER composite score. capitalAtRisk 0; brokerEffect false.",
+                BOUNDARY_REMINDER,
+              ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerPrompt(
+    "runbook_process_supervisor",
+    {
+      title: "Process supervisor (tick before external tools)",
+      description:
+        "Mid-flight process heartbeat: pin inventory, surface lock, process_tick with observed tools and optional proposal. proceed|warn|stop is process-layer only — not a hard broker gateway.",
+      argsSchema: {
+        sessionId: z.string().trim().min(1).max(120).optional(),
+      },
+    },
+    async ({ sessionId }) => {
+      const id = sessionId?.trim() || undefined;
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: [
+                "Act as a process supervisor for a financial agent workflow using Runbook only.",
+                "Read runbook://docs/boundary and runbook://docs/assurance first.",
+                id
+                  ? `Use control-plane session ${id} (or create/use it if missing).`
+                  : "Create a control-plane session with charterBindingEnforcement fail-closed and inventoryEnforcement fail-closed, then runbook_session_use.",
+                "1) runbook_surface_lock_receipt — confirm closed inventory, no place_*/cancel_*, brokerExecutionTools [].",
+                "2) runbook_session_pin_inventory (or least-privilege via drift sentinel pinPreset observation-only / no-capital-order-mutation).",
+                "3) Before any external/broker-adjacent tool names, call runbook_process_tick with observedToolNames (the tools you intend to call) and optional proposal.",
+                "4) If recommendation is stop — do not proceed; report inventory unknown tools and dual-eval binding.",
+                "5) If warn — surface the risk; continue only if the human operator accepts process risk.",
+                "6) If proceed — continue process work; still never place/cancel via Runbook (there are no place tools).",
+                "7) Optional: runbook_drift_sentinel on a local tools/list paste; runbook_session_seal_capsule when the session is ready for portable evidence.",
+                "Hard rules: never configure brokerage MCP here; never invent composite scores or returns; process-layer only — host may still bypass Runbook.",
                 BOUNDARY_REMINDER,
               ].join("\n"),
             },

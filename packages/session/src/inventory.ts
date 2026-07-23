@@ -108,6 +108,44 @@ export function buildPublicDocsInventoryPin(input?: {
   return inventoryPinSchema.parse(pin);
 }
 
+export type InventoryPinPreset = "public-docs-full" | "observation-only" | "no-capital-order-mutation";
+
+/**
+ * Least-privilege style pin presets from the public-docs name set.
+ * Process-layer admission only — does not block a separate brokerage MCP.
+ */
+export function buildInventoryPinPreset(
+  preset: InventoryPinPreset,
+  input?: { createdAt?: string; label?: string; admitted?: boolean },
+): InventoryPin {
+  if (preset === "public-docs-full") {
+    return buildPublicDocsInventoryPin(input);
+  }
+  const full = buildPublicDocsInventoryPin(input);
+  const allowed =
+    preset === "observation-only"
+      ? full.tools.filter((t) => t.effectClass === "observation")
+      : full.tools.filter((t) => t.effectClass !== "capital-order-mutation");
+  const tools = allowed.map((t) => ({ ...t }));
+  return inventoryPinSchema.parse({
+    ...full,
+    pinId: newId("pin"),
+    label:
+      input?.label ??
+      (preset === "observation-only"
+        ? "Public-docs observation-only pin"
+        : "Public-docs no capital-order-mutation pin"),
+    tools,
+    toolSetSha256: toolSetSha256FromEntries(tools),
+    limitations: [
+      ...full.limitations,
+      `preset:${preset}`,
+      "least-privilege-projection-not-runtime-enforcement",
+      "does-not-block-separate-brokerage-mcp",
+    ],
+  });
+}
+
 export function checkObservedToolsAgainstPin(
   pin: InventoryPin | undefined,
   observedToolNames: readonly string[],

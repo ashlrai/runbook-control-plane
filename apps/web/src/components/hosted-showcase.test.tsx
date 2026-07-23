@@ -42,6 +42,15 @@ describe("Hosted showcase", () => {
       expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain("Hosted showcase");
       const dualStep = document.querySelector('[data-step="dual-eval"]');
       expect(dualStep?.getAttribute("data-status")).toBe("ok");
+
+      const continueLinks = screen.getByLabelText("Continue after showcase");
+      const hrefs = Array.from(continueLinks.querySelectorAll("a")).map((a) =>
+        a.getAttribute("href"),
+      );
+      expect(hrefs.some((h) => h?.startsWith("/session?sessionId="))).toBe(true);
+      expect(hrefs).toContain("/verify");
+      expect(hrefs).toContain("/theater");
+      expect(hrefs.some((h) => h?.startsWith("/control-room?sessionId="))).toBe(true);
     },
     35_000,
   );

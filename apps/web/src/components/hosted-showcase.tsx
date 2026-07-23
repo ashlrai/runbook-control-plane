@@ -365,24 +365,42 @@ export function HostedShowcase() {
             <pre className={styles.receipt} aria-label="Showcase receipt JSON">
               {receipt}
             </pre>
-            <div className={styles.links}>
-              <Link className={styles.chipLink} href="/session">
-                Session spine
-              </Link>
-              <Link className={styles.chipLink} href="/shadow-lab">
-                Shadow Lab
-              </Link>
-              <Link className={styles.chipLink} href="/registry">
-                Capability registry
-              </Link>
-              <Link className={styles.chipLink} href="/mcp">
-                MCP cockpit (33 tools)
-              </Link>
+            <div className={styles.links} aria-label="Continue after showcase">
+              {sessionId ? (
+                <Link
+                  className={styles.chipLink}
+                  href={`/session?sessionId=${encodeURIComponent(sessionId)}`}
+                >
+                  Session · {sessionId.slice(0, 12)}…
+                </Link>
+              ) : (
+                <Link className={styles.chipLink} href="/session">
+                  Session spine
+                </Link>
+              )}
               <Link className={styles.chipLink} href="/verify">
                 Capsule verifier
               </Link>
-              <Link className={styles.chipLink} href="/control-room">
-                Control Room preflight
+              <Link className={styles.chipLink} href="/theater">
+                Process Theater
+              </Link>
+              {sessionId ? (
+                <Link
+                  className={styles.chipLink}
+                  href={`/control-room?sessionId=${encodeURIComponent(sessionId)}`}
+                >
+                  Control Room dual-eval
+                </Link>
+              ) : (
+                <Link className={styles.chipLink} href="/control-room">
+                  Control Room preflight
+                </Link>
+              )}
+              <Link className={styles.chipLink} href="/shadow-lab">
+                Shadow Lab
+              </Link>
+              <Link className={styles.chipLink} href="/mcp">
+                MCP cockpit (38 tools)
               </Link>
             </div>
           </div>

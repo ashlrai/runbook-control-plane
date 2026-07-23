@@ -208,6 +208,21 @@
   gap: 12px;
 }
 
+.sealNote {
+  margin: 0 18px 16px;
+  padding: 12px 14px;
+  border: 1px dashed #cbd5e1;
+  background: #f7f9fc;
+  color: var(--sd-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sealNote code {
+  font: 550 10px/1.3 var(--font-mono), monospace;
+  color: var(--sd-ink);
+}
+
 .importHead {
   display: flex;
   flex-wrap: wrap;

@@ -6,8 +6,8 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.3.2` |
-| Tools | 33 (closed inventory; `brokerExecutionTools: []`) |
+| Server name / version | `runbook` / `0.4.0` |
+| Tools | 38 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |
 | Composite safety score | **prohibited** |
@@ -29,7 +29,7 @@ pnpm demo:frontier
 pnpm demo:elite
 # Optional: multi-charter Pareto tournament
 pnpm demo:tournament
-# Optional smokes (closed 33-tool surface + shadow + dossier)
+# Optional smokes (closed 38-tool surface + shadow + dossier)
 pnpm smoke:elite          # @runbook/shadow-lab + @runbook/mcp tests
 pnpm smoke:web-shadow     # web vitest for shadow-lab UI/browser adapter
 pnpm smoke:dossier        # financial-dossier-process-bridge tests
@@ -85,10 +85,10 @@ A direct brokerage tool can bypass Runbook. Human confirmation must remain enabl
 
 ---
 
-## Full tool table (33)
+## Full tool table (38)
 
 All tools advertise `openWorldHint: false` and `brokerEffect: false` (or no broker side effects).  
-Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session.
+Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session + **5** elite process.
 
 ### Discovery
 
@@ -141,7 +141,7 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_session_get` | Read session by id | yes | local-session-only |
 | `runbook_session_export` | Evidence pack export | yes | local-control-plane-export-only |
 | `runbook_session_set_charter` | Bind advisory policy + `charterDigest` | no | local-session-only |
-| `runbook_session_pin_inventory` | Default public-docs pin or operator-declared names | no | local-session-only |
+| `runbook_session_pin_inventory` | Default public-docs pin, pinPreset, or operator-declared names | no | local-session-only |
 | `runbook_session_check_inventory` | Observed tools vs pin (`inventoryEnforcement`, fail-closed default path) | yes | local-session-only |
 | `runbook_session_import_tools_list` | Import local tools/list JSON and check vs pin (never network fetch) | no | local-session-only |
 | `runbook_session_bind_experiment` | Bind local ledger `experimentId` (+ optional head hash) | no | local-session-only |
@@ -149,6 +149,16 @@ Local process/evidence spine (`@runbook/session`). Stored under `RUNBOOK_DATA_DI
 | `runbook_session_record_shadow` | Record hardFalseAllows / hardFalseDenies | no | synthetic-curriculum-process-quality-only |
 | `runbook_approval_create_signed` | Ephemeral Ed25519 approval intent; private key not persisted | no | local-device-key-attestation-only |
 | `runbook_approval_verify` | Verify signed intent with public SPKI base64 | yes | local-device-key-attestation-only |
+
+### Elite process (5)
+
+| Tool | Effect | Read-only | Assurance |
+| --- | --- | --- | --- |
+| `runbook_surface_lock_receipt` | Closed-surface attestation (TOOL_NAMES digest + version) | yes | local-discovery-only |
+| `runbook_process_tick` | Mid-flight inventory + optional dual-eval → proceed\|warn\|stop | no | local-session-only |
+| `runbook_session_import_pack` | Import local session evidence pack JSON | no | local-session-only |
+| `runbook_session_seal_capsule` | Seal session as synthetic process Proof Capsule | no | self-asserted-author-key-integrity-only |
+| `runbook_drift_sentinel` | tools/list + pin fail-closed drift receipt | yes | local-session-only |
 
 Web UI theater: `/session`. Prompt: `runbook_control_plane_session`.
 

@@ -32,9 +32,11 @@ export {
   MAX_TOOL_NAME_LENGTH,
   ToolsListParseError,
   buildPublicDocsInventoryPin,
+  buildInventoryPinPreset,
   checkObservedToolsAgainstPin,
   parseToolsListJson,
   parseToolsListJsonText,
+  type InventoryPinPreset,
   type ToolsListJsonFormat,
   type ParsedToolsList,
 } from "./inventory.js";
@@ -48,6 +50,24 @@ export {
   type CharterDualEvalInput,
   type CharterDualEvalResult,
 } from "./charter-binding.js";
+
+export {
+  resolveProcessTick,
+  type ProcessTickRecommendation,
+  type ProcessTickResult,
+} from "./process-tick.js";
+
+export {
+  parseSessionEvidencePack,
+  sessionFromEvidencePack,
+  SessionPackImportError,
+} from "./pack-import.js";
+
+export {
+  buildProcessCapsulePayloads,
+  processCapsuleExperimentId,
+  type ProcessCapsulePayloadDraft,
+} from "./process-capsule.js";
 
 export {
   generateApprovalKeyPair,

@@ -6,7 +6,7 @@ Runbook is a **broker-neutral process, evidence, and control layer for financial
 | --- | --- |
 | **Status** | Research prototype — not a production trading system |
 | **Hosted lab** | [runbook.ashlr.ai](https://runbook.ashlr.ai) · browser-local process evidence · [showcase](https://runbook.ashlr.ai/showcase) |
-| **MCP** | `runbook` **v0.3.2** · closed **33-tool** inventory · `brokerExecutionTools: []` |
+| **MCP** | `runbook` **v0.4.0** · closed **38-tool** inventory · `brokerExecutionTools: []` |
 | **Capital** | Live-capital allocation: **$0** |
 | **License** | [Apache-2.0](./LICENSE) |
 | **Affiliation** | **Not affiliated with, endorsed by, or part of Robinhood Markets, Inc.** |
@@ -71,7 +71,7 @@ pnpm test && pnpm typecheck && pnpm lint && pnpm build
                                         │ stdio
                                         ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  @runbook/mcp  (runbook v0.3.2 · 33 tools · openWorldHint:false) │
+│  @runbook/mcp  (runbook v0.4.0 · 38 tools · openWorldHint:false) │
 │  ledger · preflight · offline verify · shadow · session · approvals│
 └───┬──────────────┬───────────────┬──────────────┬────────────────┘
     │              │               │              │
@@ -142,8 +142,8 @@ Source of truth: [`packages/mcp/src/surface.ts`](./packages/mcp/src/surface.ts).
 | Property | Value |
 | --- | --- |
 | Server name | `runbook` |
-| Server version | **`0.3.2`** |
-| Tools | **33** closed names in `TOOL_NAMES` |
+| Server version | **`0.4.0`** |
+| Tools | **38** closed names in `TOOL_NAMES` |
 | `brokerExecutionTools` | always `[]` |
 | `openWorldHint` | `false` on every tool |
 | Transport | stdio |

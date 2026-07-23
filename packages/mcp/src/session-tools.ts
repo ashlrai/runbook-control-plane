@@ -6,6 +6,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { riskPolicySchema } from "@runbook/engine/schema";
 import {
+  buildInventoryPinPreset,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   createCallerAssertedApproval,
@@ -19,6 +20,7 @@ import {
   ToolsListParseError,
   verifySignedApprovalIntent,
   type InventoryPin,
+  type InventoryPinPreset,
   type InventoryToolEntry,
 } from "@runbook/session";
 import * as z from "zod/v4";
@@ -312,10 +314,13 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
     {
       title: "Pin Session Inventory",
       description:
-        "Pin an admitted tool inventory on a session. Default: public-docs 50-tool Robinhood Trading research pin via buildPublicDocsInventoryPin. Optional toolNames builds an operator-declared pin. Not runtime confirmation; not broker authorization.",
+        "Pin an admitted tool inventory on a session. Default: public-docs 50-tool Robinhood Trading research pin. Optional pinPreset selects least-privilege projections (public-docs-full | observation-only | no-capital-order-mutation) via buildInventoryPinPreset. Optional toolNames builds an operator-declared pin (wins over pinPreset). Not runtime confirmation; not broker authorization.",
       inputSchema: {
         sessionId: sessionIdSchema,
         toolNames: z.array(z.string().trim().min(1).max(160)).min(1).max(200).optional(),
+        pinPreset: z
+          .enum(["public-docs-full", "observation-only", "no-capital-order-mutation"])
+          .optional(),
         label: z.string().trim().min(1).max(200).optional(),
       },
       outputSchema: {
@@ -328,15 +333,18 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
       },
       annotations: mutatingAnnotations,
     },
-    withToolErrors(async ({ sessionId, toolNames, label }) => {
+    withToolErrors(async ({ sessionId, toolNames, pinPreset, label }) => {
       const store = getStore(options);
-      const pin =
-        toolNames !== undefined && toolNames.length > 0
-          ? (() => {
-              const custom = buildOperatorInventoryPin(toolNames);
-              return label !== undefined ? inventoryPinSchema.parse({ ...custom, label }) : custom;
-            })()
-          : buildPublicDocsInventoryPin(label !== undefined ? { label } : undefined);
+      const labelOpt = label !== undefined ? { label } : undefined;
+      let pin: InventoryPin;
+      if (toolNames !== undefined && toolNames.length > 0) {
+        const custom = buildOperatorInventoryPin(toolNames);
+        pin = label !== undefined ? inventoryPinSchema.parse({ ...custom, label }) : custom;
+      } else if (pinPreset !== undefined) {
+        pin = buildInventoryPinPreset(pinPreset as InventoryPinPreset, labelOpt);
+      } else {
+        pin = buildPublicDocsInventoryPin(labelOpt);
+      }
       const session = await store.setInventoryPin(sessionId, pin);
       return {
         schemaVersion: "runbook.session-pin-inventory.v1" as const,

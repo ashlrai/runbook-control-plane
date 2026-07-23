@@ -5,6 +5,7 @@ import { SITE_ORIGIN } from "@/lib/site";
 const PATHS = [
   "/",
   "/showcase",
+  "/theater",
   "/session",
   "/shadow-lab",
   "/control-room",

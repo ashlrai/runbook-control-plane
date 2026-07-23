@@ -63,12 +63,13 @@ const doors = [
 
 const productSurfaces = [
   { href: "/showcase", label: "Hosted showcase", detail: "One-click control-plane story · dual-eval · HFA=0" },
+  { href: "/theater", label: "Process Theater", detail: "Session timeline · pin · shadow · dual-eval · HOSTED LAB" },
   { href: "/session", label: "Control Plane Session", detail: "Charter · inventory pin · shadow · dossier evidence spine" },
   { href: "/registry", label: "Capability Registry", detail: "50-tool public-derived inventory + interactive drift theater" },
   { href: "/control-room", label: "Control Room", detail: "Local charter + real engine preflight tickets" },
   { href: "/shadow-lab", label: "Shadow Process Lab", detail: "Recursive refine · multi-charter tournament · meta-curriculum" },
   { href: "/dossier", label: "Dossier status", detail: "31-case architecture board · not buyer-ready" },
-  { href: "/mcp", label: "MCP cockpit", detail: "Install, 33 tools, golden journey, fixture demos" },
+  { href: "/mcp", label: "MCP cockpit", detail: "Install, 38 tools, golden journey, fixture demos" },
   { href: "/lineage", label: "Lineage atlas", detail: "Multi-capsule graph, offline only" },
   { href: "/trust", label: "Trust center", detail: "Metadata snapshot inspection + limits" },
   { href: "/proof-capsule", label: "Proof capsule", detail: "Portable evidence packaging story" },
@@ -93,6 +94,7 @@ export function ProductMap() {
         </Link>
         <nav className={styles.headerNav} aria-label="Product surfaces">
           <Link href="/showcase">Showcase</Link>
+          <Link href="/theater">Theater</Link>
           <Link href="/session">Session</Link>
           <Link href="/registry">Registry</Link>
           <Link href="/control-room">Control Room</Link>
@@ -187,6 +189,14 @@ export function ProductMap() {
           </div>
           <ArrowRight size={15} aria-hidden="true" />
         </Link>
+        <Link className={styles.builderCard} href="/theater">
+          <Layers3 size={18} aria-hidden="true" />
+          <div>
+            <strong>Process Theater</strong>
+            <span>Pin · shadow · dual-eval timeline · HOSTED LAB</span>
+          </div>
+          <ArrowRight size={15} aria-hidden="true" />
+        </Link>
         <Link className={styles.builderCard} href="/control-room">
           <Gauge size={18} aria-hidden="true" />
           <div>
@@ -250,6 +260,7 @@ export function ProductMap() {
         <span>Runbook alpha · observer mode · no affiliation with Robinhood</span>
         <div>
           <Link href="/session"><Link2 size={12} aria-hidden="true" /> Session</Link>
+          <Link href="/theater"><Layers3 size={12} aria-hidden="true" /> Theater</Link>
           <Link href="/registry"><Layers3 size={12} aria-hidden="true" /> Registry</Link>
           <Link href="/control-room"><Gauge size={12} aria-hidden="true" /> Control Room</Link>
           <Link href="/shadow-lab"><Repeat2 size={12} aria-hidden="true" /> Shadow Lab</Link>

@@ -1,7 +1,7 @@
 /**
  * Static MCP cockpit catalog for the web surface.
  * Mirrors packages/mcp closed inventory (surface.ts / tool-contract):
- * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session = 33 tools.
+ * 1 discovery + 6 ledger + 7 offline + 6 shadow + 13 session + 5 elite = 38 tools.
  * No network, no credentials, brokerEffect always false.
  */
 
@@ -9,7 +9,7 @@ export type McpToolRow = {
   name: string;
   effect: string;
   assurance: string;
-  lane: "discovery" | "ledger" | "offline" | "shadow" | "session";
+  lane: "discovery" | "ledger" | "offline" | "shadow" | "session" | "elite";
   readOnly: boolean;
 };
 
@@ -283,6 +283,41 @@ export const MCP_TOOLS: readonly McpToolRow[] = [
     effect: "Verify signed approval intent",
     assurance: "local-device-key-attestation-only",
     lane: "session",
+    readOnly: true,
+  },
+  {
+    name: "runbook_surface_lock_receipt",
+    effect: "Digest closed TOOL_NAMES + version attestation",
+    assurance: "runbook-surface-only-not-host-inventory",
+    lane: "elite",
+    readOnly: true,
+  },
+  {
+    name: "runbook_process_tick",
+    effect: "Supervisor tick: inventory + dual-eval → proceed|warn|stop",
+    assurance: "process-layer-not-hard-gateway",
+    lane: "elite",
+    readOnly: false,
+  },
+  {
+    name: "runbook_session_import_pack",
+    effect: "Import session evidence pack JSON",
+    assurance: "local-session-only",
+    lane: "elite",
+    readOnly: false,
+  },
+  {
+    name: "runbook_session_seal_capsule",
+    effect: "Seal session as synthetic .runbook capsule",
+    assurance: "self-asserted-author-key-only",
+    lane: "elite",
+    readOnly: false,
+  },
+  {
+    name: "runbook_drift_sentinel",
+    effect: "tools/list + pin fail-closed drift receipt",
+    assurance: "operator-provided-not-runtime-confirmed",
+    lane: "elite",
     readOnly: true,
   },
 ] as const;

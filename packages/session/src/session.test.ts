@@ -3,15 +3,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  buildInventoryPinPreset,
+  buildProcessCapsulePayloads,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
   charterDigest,
   createCallerAssertedApproval,
   generateApprovalKeyPair,
+  parseSessionEvidencePack,
   parseToolsListJson,
   parseToolsListJsonText,
   resolveCharterDualEval,
+  resolveProcessTick,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
+  sessionFromEvidencePack,
+  SessionPackImportError,
   SessionStore,
   signApprovalIntent,
   ToolsListParseError,
@@ -219,5 +225,127 @@ describe("@runbook/session", () => {
     const wrongKey = generateApprovalKeyPair();
     const bad = verifySignedApprovalIntent(signed, wrongKey.publicKeySpkiDer);
     expect(bad.valid).toBe(false);
+  });
+
+  it("resolveProcessTick stops on inventory fail", () => {
+    const pin = buildPublicDocsInventoryPin({ createdAt: "2026-07-23T00:00:00.000Z" });
+    const inventory = checkObservedToolsAgainstPin(
+      pin,
+      ["get_accounts", "place_crypto_order_unknown"],
+      "fail-closed",
+    );
+    expect(inventory.ok).toBe(false);
+
+    const tick = resolveProcessTick({ inventory });
+    expect(tick).toMatchObject({
+      schemaVersion: "runbook.process-tick.v1",
+      recommendation: "stop",
+      inventoryOk: false,
+      processDeniedBySession: false,
+      brokerEffect: false,
+      compositeScore: false,
+      capitalAtRisk: 0,
+    });
+    expect(tick.inventoryUnknownTools).toContain("place_crypto_order_unknown");
+    expect(tick.message).toMatch(/Inventory fail-closed/i);
+  });
+
+  it("resolveProcessTick stops on fail-closed dual deny", () => {
+    const pin = buildPublicDocsInventoryPin({ createdAt: "2026-07-23T00:00:00.000Z" });
+    const inventory = checkObservedToolsAgainstPin(pin, ["get_accounts"], "fail-closed");
+    expect(inventory.ok).toBe(true);
+
+    const dualEval = resolveCharterDualEval({
+      ledgerAllowed: true,
+      sessionPresent: true,
+      sessionHasCharter: true,
+      sessionAllowed: false,
+      enforcement: "fail-closed",
+    });
+    expect(dualEval.processDeniedBySession).toBe(true);
+
+    const tick = resolveProcessTick({ inventory, dualEval });
+    expect(tick).toMatchObject({
+      recommendation: "stop",
+      inventoryOk: true,
+      processDeniedBySession: true,
+      sessionCharterBinding: "mismatch-session-denies",
+      ledgerAllowed: true,
+      processAllowed: false,
+      charterBindingEnforcement: "fail-closed",
+      brokerEffect: false,
+      capitalAtRisk: 0,
+    });
+    expect(tick.message).toMatch(/fail-closed|process deny/i);
+  });
+
+  it("buildInventoryPinPreset observation-only has no capital-order-mutation", () => {
+    const pin = buildInventoryPinPreset("observation-only", {
+      createdAt: "2026-07-23T00:00:00.000Z",
+    });
+    expect(pin.tools.length).toBeGreaterThan(0);
+    expect(pin.tools.every((t) => t.effectClass === "observation")).toBe(true);
+    expect(pin.tools.some((t) => t.effectClass === "capital-order-mutation")).toBe(false);
+    expect(pin.tools.some((t) => t.name.startsWith("place_") || t.name.startsWith("cancel_"))).toBe(
+      false,
+    );
+    expect(pin.limitations).toContain("preset:observation-only");
+    expect(pin.toolSetSha256).toHaveLength(64);
+
+    const noCap = buildInventoryPinPreset("no-capital-order-mutation", {
+      createdAt: "2026-07-23T00:00:00.000Z",
+    });
+    expect(noCap.tools.every((t) => t.effectClass !== "capital-order-mutation")).toBe(true);
+  });
+
+  it("parseSessionEvidencePack + sessionFromEvidencePack round-trip local packs", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-pack-"));
+    const store = new SessionStore({ rootDir: dir });
+    await store.create({
+      sessionId: "CPS-PACK-001",
+      label: "Pack import test",
+      charter: elitePolicy,
+    });
+    const exported = await store.exportPack("CPS-PACK-001");
+
+    const pack = parseSessionEvidencePack(JSON.stringify(exported));
+    expect(pack.schemaVersion).toBe("runbook.session-evidence-pack.v1");
+    expect(pack.session.sessionId).toBe("CPS-PACK-001");
+    expect(pack.notTradingPerformance).toBe(true);
+    expect(pack.brokerEffect).toBe(false);
+
+    const session = sessionFromEvidencePack(pack, { sessionId: "CPS-PACK-REKEY" });
+    expect(session.sessionId).toBe("CPS-PACK-REKEY");
+    expect(session.label).toBe("Pack import test");
+    expect(session.charterDigest).toBe(charterDigest(elitePolicy));
+
+    expect(() => parseSessionEvidencePack("https://example.com/pack.json")).toThrow(
+      SessionPackImportError,
+    );
+    expect(() => parseSessionEvidencePack("{not-json")).toThrow(SessionPackImportError);
+    expect(() => parseSessionEvidencePack({ schemaVersion: "nope" })).toThrow(SessionPackImportError);
+  });
+
+  it("buildProcessCapsulePayloads has required paths sorted", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-capsule-"));
+    const store = new SessionStore({ rootDir: dir });
+    await store.create({
+      sessionId: "CPS-CAP-001",
+      label: "Capsule payloads",
+      charter: elitePolicy,
+    });
+    const pack = await store.exportPack("CPS-CAP-001");
+    const drafts = buildProcessCapsulePayloads(pack);
+    const paths = drafts.map((d) => d.path);
+    expect(paths).toEqual([
+      "payload/charter.json",
+      "payload/claims.json",
+      "payload/disclosures.json",
+      "payload/events.ndjson",
+      "payload/report.html",
+      "payload/session-evidence-pack.json",
+    ]);
+    expect([...paths].sort()).toEqual(paths);
+    expect(drafts.every((d) => d.bytes.byteLength > 0)).toBe(true);
   });
 });

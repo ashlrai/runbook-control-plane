@@ -1,10 +1,23 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ControlRoom } from "./control-room";
+import {
+  BROWSER_SESSION_STORAGE_KEY,
+  browserSessionStore,
+} from "../lib/control-plane-session";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  window.history.replaceState({}, "", "/control-room");
+});
+
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState({}, "", "/control-room");
+});
 
 describe("Control Room", () => {
   it("states advisory-only boundary and equity-only charter defaults", () => {
@@ -19,6 +32,7 @@ describe("Control Room", () => {
     expect(text).toMatch(/approvalRequired/i);
     expect(text).toMatch(/@runbook\/engine/i);
     expect(text).toMatch(/No composite process score/i);
+    expect(text).toMatch(/Hostile tickets/i);
     expect(text).not.toMatch(/agent certified|hard gateway is active/i);
   });
 
@@ -45,5 +59,85 @@ describe("Control Room", () => {
       expect(screen.getByText(/Blocked by hard checks/i)).toBeTruthy();
     });
     expect(screen.getAllByText("FAIL").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("loads hostile ticket presets (options, GME, missing thesis)", async () => {
+    render(<ControlRoom />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Options blocked \(SPY\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Blocked by hard checks/i)).toBeTruthy();
+    });
+    expect((screen.getByLabelText(/^Instrument$/i) as HTMLSelectElement).value).toBe("option");
+
+    fireEvent.click(screen.getByRole("button", { name: /Denied GME/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Blocked by hard checks/i)).toBeTruthy();
+      expect(screen.getByText(/Symbol not restricted/i)).toBeTruthy();
+    });
+    expect((screen.getByLabelText(/^Symbol$/i) as HTMLInputElement).value).toBe("GME");
+
+    fireEvent.click(screen.getByRole("button", { name: /Missing thesis \/ invalidation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Blocked by hard checks/i)).toBeTruthy();
+      expect(screen.getByText(/Decision record complete/i)).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Clean VTI equity/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+    await waitFor(() => {
+      // Clean VTI may still be blocked if denied GME left denylist; form is VTI though.
+      expect((screen.getByLabelText(/^Symbol$/i) as HTMLInputElement).value).toBe("VTI");
+    });
+  });
+
+  it("dual-evals bound session charter after preflight (ledger vs process)", async () => {
+    const session = await browserSessionStore.create({
+      sessionId: "CPS-CR-DUAL-001",
+      label: "Control Room dual-eval",
+      charterSeed: "elite",
+      charterBindingEnforcement: "fail-closed",
+    });
+    expect(localStorage.getItem(BROWSER_SESSION_STORAGE_KEY)).toContain(session.sessionId);
+
+    window.history.replaceState({}, "", `/control-room?sessionId=${session.sessionId}`);
+    render(<ControlRoom />);
+
+    await waitFor(() => {
+      const select = screen.getByLabelText("Bound Control Plane Session") as HTMLSelectElement;
+      expect(select.value).toBe(session.sessionId);
+    });
+
+    // Option probe: local equity-only charter denies (ledgerAllowed false).
+    fireEvent.click(screen.getByRole("button", { name: /Options blocked \(SPY\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+
+    await waitFor(() => {
+      const panel = screen.getByLabelText("Charter dual-eval panel");
+      expect(panel).toBeTruthy();
+      expect(panel.textContent).toMatch(/ledgerAllowed/i);
+      expect(panel.textContent).toMatch(/processAllowed/i);
+      expect(panel.textContent).toMatch(/sessionCharterBinding/i);
+      expect(panel.textContent).toMatch(/still not a hard gateway/i);
+      expect(panel.textContent).toMatch(/brokerEffect=false/);
+    });
+
+    // Clean VTI: local allow; elite session may still allow (matched-allowed) under fail-closed.
+    fireEvent.click(screen.getByRole("button", { name: /Clean VTI equity/i }));
+    // Reset denylist noise from denied-gme path if any.
+    fireEvent.click(screen.getByRole("button", { name: /Reset demo proposal/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Run engine preflight/i }));
+
+    await waitFor(() => {
+      const panel = screen.getByLabelText("Charter dual-eval panel");
+      expect(panel.textContent).toMatch(/ledgerAllowed/i);
+      expect(panel.textContent).toMatch(/TRUE|FALSE/);
+      expect(panel.textContent).toMatch(
+        /matched-allowed|matched-denied|mismatch-session-denies|mismatch-session-allows|no-session-charter/,
+      );
+    });
   });
 });

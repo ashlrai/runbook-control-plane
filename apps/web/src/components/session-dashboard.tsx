@@ -18,6 +18,12 @@ import {
   Terminal,
   Upload,
 } from "lucide-react";
+import {
+  parseSessionEvidencePack,
+  sessionFromEvidencePack,
+  SessionPackImportError,
+} from "@runbook/session/pack-import";
+import { buildProcessCapsulePayloads } from "@runbook/session/process-capsule";
 import { BrandMark } from "./brand-mark";
 import {
   browserSessionStore,
@@ -27,6 +33,7 @@ import {
   demoCharterDualEval,
   downloadEvidencePack,
   importToolsListAgainstPin,
+  parseSessionIdQuery,
   refineCharterIntoSession,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SAMPLE_OBSERVED_TOOLS_WITH_UNKNOWN,
@@ -64,6 +71,7 @@ export function SessionDashboard() {
       notTradingPerformance: true;
     }) | null
   >(null);
+  const [packJson, setPackJson] = useState("");
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
@@ -77,6 +85,15 @@ export function SessionDashboard() {
 
   useEffect(() => {
     refresh();
+    if (typeof window === "undefined") return;
+    const fromUrl = parseSessionIdQuery(window.location.search);
+    if (!fromUrl) return;
+    try {
+      browserSessionStore.read(fromUrl);
+      setSelectedId(fromUrl);
+    } catch {
+      /* unknown deep link */
+    }
   }, [refresh]);
 
   const selected = useMemo(
@@ -309,6 +326,72 @@ export function SessionDashboard() {
     }
   }, [selected]);
 
+  const importEvidencePack = useCallback(async () => {
+    setBusy(true);
+    try {
+      const pack = parseSessionEvidencePack(packJson);
+      // Re-key so paste demos do not clobber an existing sessionId row.
+      const imported = sessionFromEvidencePack(pack, {
+        sessionId: `CPS-IMP-${Date.now().toString(36).toUpperCase()}`,
+      });
+      await browserSessionStore.write({
+        ...imported,
+        capitalAtRisk: 0,
+        brokerEffect: false,
+        compositeScore: false,
+        purpose: "control-plane-process-evidence",
+      });
+      setSelectedId(imported.sessionId);
+      setInventoryCheck(null);
+      setToolsListImport(null);
+      setDualEval(null);
+      setStatusNote(
+        `Imported evidence pack → ${imported.sessionId} · local paste only · never network-fetched · not a hard gateway`,
+      );
+      refresh();
+    } catch (error) {
+      const message =
+        error instanceof SessionPackImportError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Pack import failed.";
+      setStatusNote(message);
+    } finally {
+      setBusy(false);
+    }
+  }, [packJson, refresh]);
+
+  const exportProcessClaims = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const pack = await browserSessionStore.exportPack(selected.sessionId);
+      const members = buildProcessCapsulePayloads(pack);
+      const claimsMember = members.find((m) => m.path === "payload/claims.json");
+      if (!claimsMember) {
+        throw new Error("Process capsule payloads missing payload/claims.json.");
+      }
+      const text = new TextDecoder().decode(claimsMember.bytes);
+      const blob = new Blob([text.endsWith("\n") ? text : `${text}\n`], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `runbook-process-claims-${selected.sessionId}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setStatusNote(
+        `Exported process claims JSON for ${selected.sessionId} · verify path helper · seal via MCP runbook_session_seal_capsule (browser has no capsule-author)`,
+      );
+    } catch (error) {
+      setStatusNote(error instanceof Error ? error.message : "Claims export failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [selected]);
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -319,9 +402,10 @@ export function SessionDashboard() {
         </Link>
         <nav className={styles.headerNav} aria-label="Session navigation">
           <Link href="/">Product map</Link>
+          <Link href="/theater">Theater</Link>
           <Link href="/shadow-lab">Shadow Lab</Link>
           <Link href="/control-room">Control Room</Link>
-          <Link href="/dossier">Dossier</Link>
+          <Link href="/verify">Verify</Link>
           <Link href="/mcp">MCP</Link>
         </nav>
       </header>
@@ -412,6 +496,42 @@ export function SessionDashboard() {
               <Plus size={14} aria-hidden="true" />
               Create session
             </button>
+          </div>
+
+          <div className={styles.importBlock} aria-label="Session evidence pack import" style={{ margin: "0 18px 16px" }}>
+            <div className={styles.importHead}>
+              <FileJson size={14} aria-hidden="true" />
+              <strong>Import evidence pack JSON</strong>
+              <span>@runbook/session/pack-import · local paste only</span>
+            </div>
+            <p style={{ margin: 0, color: "var(--sd-muted)", fontSize: 11, lineHeight: 1.45 }}>
+              Paste a <code>runbook.session-evidence-pack.v1</code> export. Pure pack-import (no
+              node:fs). Refuses URL fetch. Re-keys sessionId on import so existing rows are not
+              clobbered.
+            </p>
+            <label className={styles.importLabel}>
+              Evidence pack JSON
+              <textarea
+                className={styles.toolsListTextarea}
+                value={packJson}
+                onChange={(event) => setPackJson(event.target.value)}
+                spellCheck={false}
+                rows={6}
+                placeholder='{"schemaVersion":"runbook.session-evidence-pack.v1",…}'
+                aria-label="Session evidence pack JSON paste area"
+              />
+            </label>
+            <div className={styles.actions} style={{ padding: 0 }}>
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                onClick={() => void importEvidencePack()}
+                disabled={busy || packJson.trim().length === 0}
+              >
+                <Upload size={14} aria-hidden="true" />
+                Import pack into local store
+              </button>
+            </div>
           </div>
 
           <div className={styles.panelHead}>
@@ -550,6 +670,15 @@ export function SessionDashboard() {
                   <button
                     type="button"
                     className={styles.ghostBtn}
+                    onClick={() => void exportProcessClaims()}
+                    disabled={busy}
+                  >
+                    <FileJson size={14} aria-hidden="true" />
+                    Export process claims JSON
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
                     onClick={() => void recordDemoShadow()}
                     disabled={busy}
                   >
@@ -557,6 +686,12 @@ export function SessionDashboard() {
                     Record demo shadow gen
                   </button>
                 </div>
+                <p className={styles.sealNote} aria-label="Seal capsule note">
+                  Browser cannot seal a signed Proof Capsule (needs capsule-author + key material).
+                  Export process claims JSON for the verify path, or seal via MCP{" "}
+                  <code>runbook_session_seal_capsule</code>. Process claims only — not returns, not
+                  certification.
+                </p>
               </div>
 
               <div className={styles.panel}>
@@ -884,9 +1019,24 @@ export function SessionDashboard() {
               : "Recursive refine · tournament · meta-curriculum"}
           </span>
         </Link>
-        <Link className={styles.linkCard} href="/control-room">
+        <Link
+          className={styles.linkCard}
+          href={
+            selected
+              ? `/control-room?sessionId=${encodeURIComponent(selected.sessionId)}`
+              : "/control-room"
+          }
+        >
           <strong>Control Room</strong>
-          <span>Real engine preflight · advisory tickets</span>
+          <span>Real engine preflight · dual-eval when bound</span>
+        </Link>
+        <Link className={styles.linkCard} href="/theater">
+          <strong>Process Theater</strong>
+          <span>Timeline · pin · shadow · dual-eval · HOSTED LAB</span>
+        </Link>
+        <Link className={styles.linkCard} href="/verify">
+          <strong>Capsule verifier</strong>
+          <span>Local Worker verify · claims export path</span>
         </Link>
         <Link className={styles.linkCard} href="/dossier">
           <strong>
@@ -898,7 +1048,7 @@ export function SessionDashboard() {
           <strong>
             <Terminal size={14} aria-hidden="true" /> MCP
           </strong>
-          <span>Local companion · shared session spine</span>
+          <span>Local companion · seal via runbook_session_seal_capsule</span>
         </Link>
       </section>
     </main>

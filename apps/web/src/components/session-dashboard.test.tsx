@@ -90,7 +90,9 @@ describe("Session dashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Pin public-docs inventory/i }));
     await waitFor(() => {
-      expect(screen.getByText(/50 tools/i)).toBeTruthy();
+      // Status note after pin — button label always contains "50 tools", so do not match that alone.
+      expect(screen.getByText(/Pinned public-docs inventory/i)).toBeTruthy();
+      expect(screen.getByLabelText("Inventory pin digest")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Check sample observed list/i }));
@@ -209,5 +211,60 @@ describe("Session dashboard", () => {
       expect(screen.getByText(/unknownTools: place_crypto_order_unknown/i)).toBeTruthy();
       expect(screen.getByText(/ok=false/i)).toBeTruthy();
     });
+  });
+
+  it("imports a session evidence pack JSON and notes seal-via-MCP path", async () => {
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:claims");
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    // Seed a pack from a real browser session export shape.
+    const seed = await browserSessionStore.create({
+      label: "Pack seed",
+      charterSeed: "elite",
+    });
+    const pack = await browserSessionStore.exportPack(seed.sessionId);
+    browserSessionStore.delete(seed.sessionId);
+
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Session evidence pack JSON paste area"), {
+      target: { value: JSON.stringify(pack) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Import pack into local store/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Imported evidence pack/i)).toBeTruthy();
+      expect(screen.getByRole("option", { name: /Pack seed/i })).toBeTruthy();
+    });
+
+    const seal = screen.getByLabelText("Seal capsule note").textContent ?? "";
+    expect(seal).toMatch(/runbook_session_seal_capsule/i);
+    expect(seal).toMatch(/not returns|not certification/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /Export process claims JSON/i }));
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+    });
+
+    const blob = createObjectURL.mock.calls[0]![0] as Blob;
+    const text = await blob.text();
+    const claims = JSON.parse(text) as {
+      schemaVersion: string;
+      capitalAtRisk: number;
+      brokerEffect: boolean;
+      compositeScore: boolean;
+    };
+    expect(claims.schemaVersion).toBe("runbook.control-plane-claims.v1");
+    expect(claims.capitalAtRisk).toBe(0);
+    expect(claims.brokerEffect).toBe(false);
+    expect(claims.compositeScore).toBe(false);
+
+    clickSpy.mockRestore();
   });
 });

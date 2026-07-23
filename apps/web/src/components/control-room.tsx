@@ -7,9 +7,11 @@ import {
   CircleAlert,
   Fingerprint,
   Gauge,
+  Link2,
   LockKeyhole,
   Play,
   ShieldAlert,
+  Swords,
   X,
 } from "lucide-react";
 import { BrandMark } from "./brand-mark";
@@ -20,6 +22,13 @@ import {
   type RiskPolicy,
   type TradeProposal,
 } from "../lib/runbook";
+import {
+  browserSessionStore,
+  parseSessionIdQuery,
+  type CharterDualEvalResult,
+  type ControlPlaneSession,
+} from "../lib/control-plane-session";
+import { resolveCharterDualEval } from "@runbook/session/charter-binding";
 import { getExperimentDraft } from "../lib/local-store";
 import styles from "./control-room.module.css";
 
@@ -39,6 +48,12 @@ type ProposalForm = {
 };
 
 type CharterSource = "defaults" | "indexeddb" | "edited";
+
+type HostileTicketId =
+  | "clean-vti"
+  | "options-blocked"
+  | "denied-gme"
+  | "missing-thesis";
 
 const DEFAULT_CHARTER: RiskPolicy = {
   ...masonPolicy,
@@ -60,6 +75,57 @@ function proposalFromDemo(): ProposalForm {
     hasThesis: demoProposal.hasThesis,
     hasInvalidation: demoProposal.hasInvalidation,
     evidenceSourceCount: demoProposal.evidenceSourceCount,
+  };
+}
+
+/** Synthetic hostile proposal presets — labels only; no live capital path. */
+function hostileFormPreset(id: HostileTicketId): ProposalForm {
+  const base = proposalFromDemo();
+  switch (id) {
+    case "clean-vti":
+      return base;
+    case "options-blocked":
+      return {
+        ...base,
+        proposalId: "proposal-hostile-option-spy",
+        symbol: "SPY",
+        instrument: "option",
+        notional: 50,
+        projectedPositionNotional: 50,
+      };
+    case "denied-gme":
+      return {
+        ...base,
+        proposalId: "proposal-hostile-gme",
+        symbol: "GME",
+        instrument: "equity",
+        notional: 50,
+        projectedPositionNotional: 50,
+      };
+    case "missing-thesis":
+      return {
+        ...base,
+        proposalId: "proposal-hostile-no-thesis",
+        hasThesis: false,
+        hasInvalidation: false,
+      };
+  }
+}
+
+function formToProposal(form: ProposalForm): TradeProposal {
+  return {
+    proposalId: form.proposalId.trim() || "proposal-local",
+    experimentId: form.experimentId.trim() || "RUN-LOCAL",
+    symbol: form.symbol.trim() || "VTI",
+    instrument: form.instrument,
+    side: form.side,
+    notional: form.notional,
+    projectedPositionNotional: form.projectedPositionNotional,
+    dailyTradesAfter: form.dailyTradesAfter,
+    currentDrawdownPercent: form.currentDrawdownPercent,
+    hasThesis: form.hasThesis,
+    hasInvalidation: form.hasInvalidation,
+    evidenceSourceCount: form.evidenceSourceCount,
   };
 }
 
@@ -95,6 +161,18 @@ export function ControlRoom() {
   const [form, setForm] = useState<ProposalForm>(proposalFromDemo);
   const [ran, setRan] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ControlPlaneSession[]>([]);
+  const [bindSessionId, setBindSessionId] = useState<string | null>(null);
+  const [dualEval, setDualEval] = useState<CharterDualEvalResult | null>(null);
+  const [activeTicket, setActiveTicket] = useState<HostileTicketId>("clean-vti");
+
+  const refreshSessions = useCallback(() => {
+    try {
+      setSessions(browserSessionStore.list());
+    } catch {
+      setSessions([]);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,22 +194,23 @@ export function ControlRoom() {
     };
   }, []);
 
+  // Bind session from ?sessionId= or keep operator selection.
+  useEffect(() => {
+    refreshSessions();
+    if (typeof window === "undefined") return;
+    const fromUrl = parseSessionIdQuery(window.location.search);
+    if (!fromUrl) return;
+    try {
+      browserSessionStore.read(fromUrl);
+      setBindSessionId(fromUrl);
+    } catch {
+      /* unknown session id — leave unbound */
+    }
+  }, [refreshSessions]);
+
   const preflight = useMemo(() => {
     try {
-      const proposal: TradeProposal = {
-        proposalId: form.proposalId.trim() || "proposal-local",
-        experimentId: form.experimentId.trim() || "RUN-LOCAL",
-        symbol: form.symbol.trim() || "VTI",
-        instrument: form.instrument,
-        side: form.side,
-        notional: form.notional,
-        projectedPositionNotional: form.projectedPositionNotional,
-        dailyTradesAfter: form.dailyTradesAfter,
-        currentDrawdownPercent: form.currentDrawdownPercent,
-        hasThesis: form.hasThesis,
-        hasInvalidation: form.hasInvalidation,
-        evidenceSourceCount: form.evidenceSourceCount,
-      };
+      const proposal = formToProposal(form);
       return { ok: true as const, result: evaluateProposal(charter, proposal) };
     } catch (err) {
       return {
@@ -141,20 +220,48 @@ export function ControlRoom() {
     }
   }, [charter, form]);
 
+  const computeDualEval = useCallback(
+    (proposal: TradeProposal, ledgerAllowed: boolean): CharterDualEvalResult | null => {
+      if (!bindSessionId) return null;
+      let session: ControlPlaneSession;
+      try {
+        session = browserSessionStore.read(bindSessionId);
+      } catch {
+        return null;
+      }
+      const sessionHasCharter = session.charter !== undefined;
+      const sessionAllowed = sessionHasCharter
+        ? evaluateProposal(session.charter!, proposal).allowed
+        : undefined;
+      return resolveCharterDualEval({
+        ledgerAllowed,
+        sessionPresent: true,
+        sessionHasCharter,
+        ...(sessionAllowed !== undefined ? { sessionAllowed } : {}),
+        enforcement: session.charterBindingEnforcement ?? "warn",
+      });
+    },
+    [bindSessionId],
+  );
+
   const runPreflight = useCallback(() => {
     if (!preflight.ok) {
       setError(preflight.message);
+      setDualEval(null);
       setRan(true);
       return;
     }
     setError(null);
     setRan(true);
-  }, [preflight]);
+    const proposal = formToProposal(form);
+    setDualEval(computeDualEval(proposal, preflight.result.allowed));
+  }, [preflight, form, computeDualEval]);
 
   function updateForm<K extends keyof ProposalForm>(key: K, value: ProposalForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setRan(false);
     setError(null);
+    setDualEval(null);
   }
 
   function updateCharterField(patch: Partial<RiskPolicy>) {
@@ -162,12 +269,36 @@ export function ControlRoom() {
     setCharterSource("edited");
     setRan(false);
     setError(null);
+    setDualEval(null);
   }
+
+  const loadHostileTicket = useCallback((id: HostileTicketId) => {
+    setActiveTicket(id);
+    setForm(hostileFormPreset(id));
+    // Denied-GME ticket seeds a local denylist so the hard ticket fails without
+    // requiring an elite session (session dual-eval still applies when bound).
+    if (id === "denied-gme") {
+      setCharter((prev) => {
+        const denied = new Set(prev.deniedSymbols.map((s) => s.toUpperCase()));
+        denied.add("GME");
+        return { ...prev, deniedSymbols: [...denied] };
+      });
+      setCharterSource("edited");
+    }
+    setRan(false);
+    setError(null);
+    setDualEval(null);
+  }, []);
 
   const hardPassed =
     preflight.ok ? preflight.result.checks.filter((c) => c.severity === "hard" && c.passed).length : 0;
   const hardTotal =
     preflight.ok ? preflight.result.checks.filter((c) => c.severity === "hard").length : 0;
+
+  const boundSession = useMemo(() => {
+    if (!bindSessionId) return null;
+    return sessions.find((s) => s.sessionId === bindSessionId) ?? null;
+  }, [sessions, bindSessionId]);
 
   return (
     <main className={styles.page}>
@@ -179,11 +310,11 @@ export function ControlRoom() {
         </Link>
         <nav className={styles.headerNav} aria-label="Control Room navigation">
           <Link href="/">Product map</Link>
+          <Link href="/theater">Process Theater</Link>
+          <Link href="/session">Session</Link>
           <Link href="/shadow-lab">Shadow Lab</Link>
           <Link href="/experiments/new">Charter builder</Link>
           <Link href="/mcp">MCP cockpit</Link>
-          <Link href="/registry">Registry</Link>
-          <Link href="/dossier">Dossier</Link>
         </nav>
       </header>
 
@@ -200,8 +331,9 @@ export function ControlRoom() {
           <h1 id="control-room-title">Charter in. Synthetic proposal out. Tickets only.</h1>
           <p className={styles.lede}>
             Run the real <code>evaluateProposal</code> policy engine in the browser against a local
-            equity-only charter. Every check is a ticket with pass/fail drama. Allowed means the
-            submitted proposal passed recorded charter checks — not that any broker was blocked.
+            equity-only charter. Every check is a ticket with pass/fail drama. Bind a Control Plane
+            Session to dual-eval ledger vs session charter. Allowed means the submitted proposal
+            passed recorded charter checks — not that any broker was blocked.
           </p>
         </div>
         <aside className={styles.boundary} aria-label="Advisory enforcement boundary">
@@ -211,11 +343,58 @@ export function ControlRoom() {
           </div>
           <ul>
             <li>Policy evaluation uses @runbook/engine — deterministic, local, browser-safe.</li>
+            <li>Dual-eval is process-layer only. Fail-closed process deny ≠ hard broker gateway.</li>
             <li>Position, drawdown, trade-count, and evidence fields are caller-supplied — not broker truth.</li>
-            <li>A direct brokerage tool can always bypass Runbook. This is not a hard gate.</li>
             <li>No composite process score. No credentials. No order execution path.</li>
           </ul>
         </aside>
+      </section>
+
+      <section className={styles.bindBar} aria-label="Session binding for dual-eval">
+        <div className={styles.bindHead}>
+          <Link2 size={14} aria-hidden="true" />
+          <strong>Session bind</strong>
+          <span>Dual-eval after preflight · still not a hard gate</span>
+        </div>
+        <label className={styles.bindSelect}>
+          Bound Control Plane Session
+          <select
+            aria-label="Bound Control Plane Session"
+            value={bindSessionId ?? ""}
+            onChange={(e) => {
+              const next = e.target.value || null;
+              setBindSessionId(next);
+              setDualEval(null);
+              setRan(false);
+              refreshSessions();
+            }}
+          >
+            <option value="">No session · ledger-only tickets</option>
+            {sessions.map((session) => (
+              <option key={session.sessionId} value={session.sessionId}>
+                {session.label} · {session.sessionId}
+                {session.charter ? " · charter" : " · no charter"}
+              </option>
+            ))}
+          </select>
+        </label>
+        {boundSession ? (
+          <p className={styles.bindMeta}>
+            binding enforcement: <code>{boundSession.charterBindingEnforcement ?? "warn"}</code>
+            {" · "}
+            charter: {boundSession.charter ? "bound" : "missing"}
+            {" · "}
+            <Link href={`/session?sessionId=${encodeURIComponent(boundSession.sessionId)}`}>
+              Open session
+            </Link>
+          </p>
+        ) : (
+          <p className={styles.bindMeta}>
+            Create a session on <Link href="/session">/session</Link> or run{" "}
+            <Link href="/showcase">hosted showcase</Link> / <Link href="/theater">theater</Link>, then
+            bind here for dual-eval.
+          </p>
+        )}
       </section>
 
       <div className={styles.layout}>
@@ -300,6 +479,9 @@ export function ControlRoom() {
               <Fingerprint size={13} aria-hidden="true" /> approvalRequired:{" "}
               {charter.approvalRequired ? "true" : "false"}
             </span>
+            {charter.deniedSymbols.length > 0 ? (
+              <span>denied: {charter.deniedSymbols.join(", ")}</span>
+            ) : null}
             <Link href="/experiments/new">Edit full charter in builder →</Link>
           </div>
         </section>
@@ -312,6 +494,48 @@ export function ControlRoom() {
             </div>
             <Gauge size={18} aria-hidden="true" />
           </div>
+
+          <div className={styles.hostileRow} aria-label="Hostile ticket presets">
+            <span className={styles.hostileLabel}>
+              <Swords size={13} aria-hidden="true" />
+              Hostile tickets (synthetic)
+            </span>
+            <div className={styles.hostileBtns}>
+              <button
+                type="button"
+                className={styles.ticketPreset}
+                data-active={activeTicket === "clean-vti"}
+                onClick={() => loadHostileTicket("clean-vti")}
+              >
+                Clean VTI equity
+              </button>
+              <button
+                type="button"
+                className={styles.ticketPreset}
+                data-active={activeTicket === "options-blocked"}
+                onClick={() => loadHostileTicket("options-blocked")}
+              >
+                Options blocked (SPY)
+              </button>
+              <button
+                type="button"
+                className={styles.ticketPreset}
+                data-active={activeTicket === "denied-gme"}
+                onClick={() => loadHostileTicket("denied-gme")}
+              >
+                Denied GME
+              </button>
+              <button
+                type="button"
+                className={styles.ticketPreset}
+                data-active={activeTicket === "missing-thesis"}
+                onClick={() => loadHostileTicket("missing-thesis")}
+              >
+                Missing thesis / invalidation
+              </button>
+            </div>
+          </div>
+
           <div className={styles.formGrid}>
             <label>
               Symbol
@@ -418,9 +642,9 @@ export function ControlRoom() {
               type="button"
               className={styles.ghostBtn}
               onClick={() => {
-                setForm(proposalFromDemo());
-                setRan(false);
-                setError(null);
+                loadHostileTicket("clean-vti");
+                setCharter(DEFAULT_CHARTER);
+                setCharterSource("defaults");
               }}
             >
               Reset demo proposal
@@ -459,7 +683,8 @@ export function ControlRoom() {
         {!ran ? (
           <div className={styles.emptyTickets}>
             <CircleAlert size={18} aria-hidden="true" />
-            Edit the charter or proposal, then run preflight. Results stay local — no network, no broker.
+            Edit the charter or proposal, load a hostile ticket, then run preflight. Results stay
+            local — no network, no broker.
           </div>
         ) : error ? (
           <div className={styles.errorBox} role="alert">
@@ -495,12 +720,63 @@ export function ControlRoom() {
           </div>
         ) : null}
 
+        {ran && dualEval ? (
+          <div className={styles.dualEval} aria-label="Charter dual-eval panel">
+            <div className={styles.dualEvalHead}>
+              <p className={styles.eyebrow}>Dual-eval · ledger vs session</p>
+              <h3>Process layer only — still not a hard gateway</h3>
+            </div>
+            <div className={styles.dualCols}>
+              <div
+                className={styles.dualCol}
+                data-allowed={dualEval.ledgerAllowed ? "true" : "false"}
+              >
+                <span>ledgerAllowed</span>
+                <strong>{dualEval.ledgerAllowed ? "TRUE" : "FALSE"}</strong>
+                <em>Local Control Room charter · evaluateProposal</em>
+              </div>
+              <div
+                className={styles.dualCol}
+                data-allowed={dualEval.allowed ? "true" : "false"}
+              >
+                <span>processAllowed</span>
+                <strong>{dualEval.allowed ? "TRUE" : "FALSE"}</strong>
+                <em>
+                  After charterBindingEnforcement=
+                  {dualEval.charterBindingEnforcement}
+                </em>
+              </div>
+              <div className={styles.dualCol} data-allowed="info">
+                <span>sessionCharterBinding</span>
+                <strong className={styles.bindingCode}>{dualEval.sessionCharterBinding}</strong>
+                <em>
+                  sessionPolicyAllowed=
+                  {String(dualEval.sessionPolicyAllowed ?? "n/a")} · processDeniedBySession=
+                  {String(dualEval.processDeniedBySession)}
+                </em>
+              </div>
+            </div>
+            {dualEval.warningSuffix ? (
+              <p className={styles.dualWarn}>{dualEval.warningSuffix.trim()}</p>
+            ) : null}
+            <p className={styles.dualFoot}>
+              brokerEffect=false · compositeScore=false · not trading performance · host may still
+              bypass Runbook
+            </p>
+          </div>
+        ) : ran && bindSessionId && !dualEval ? (
+          <div className={styles.emptyTickets}>
+            Bound session could not be read for dual-eval. Refresh sessions or re-select.
+          </div>
+        ) : null}
+
         <p className={styles.footerNote}>
           <LockKeyhole size={14} aria-hidden="true" />
           Advisory only. Caller-supplied state. Not a hard gate over any broker. “Allowed” does not
           mean an account-wide control prevented other actions. Human confirmation must remain
-          enabled and independently performed at the broker. For recursive charter refine theater,
-          open the <Link href="/shadow-lab">Shadow Process Lab</Link>.
+          enabled and independently performed at the broker. For process theater, open{" "}
+          <Link href="/theater">Process Theater</Link>; for recursive charter refine, open the{" "}
+          <Link href="/shadow-lab">Shadow Process Lab</Link>.
         </p>
       </section>
     </main>

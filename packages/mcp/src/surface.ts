@@ -7,7 +7,7 @@ import { PROMPT_NAMES } from "./prompts.js";
 import { STATIC_RESOURCE_URIS } from "./resources.js";
 
 export const SERVER_NAME = "runbook" as const;
-export const SERVER_VERSION = "0.3.2" as const;
+export const SERVER_VERSION = "0.4.0" as const;
 
 /** Full closed tool list in stable discovery order. */
 export const TOOL_NAMES = [
@@ -44,6 +44,11 @@ export const TOOL_NAMES = [
   "runbook_session_record_shadow",
   "runbook_approval_create_signed",
   "runbook_approval_verify",
+  "runbook_surface_lock_receipt",
+  "runbook_process_tick",
+  "runbook_session_import_pack",
+  "runbook_session_seal_capsule",
+  "runbook_drift_sentinel",
 ] as const;
 
 export type RunbookToolName = (typeof TOOL_NAMES)[number];
@@ -78,6 +83,11 @@ const OFFLINE_TOOL_NAMES = new Set<string>([
   "runbook_session_record_shadow",
   "runbook_approval_create_signed",
   "runbook_approval_verify",
+  "runbook_surface_lock_receipt",
+  "runbook_process_tick",
+  "runbook_session_import_pack",
+  "runbook_session_seal_capsule",
+  "runbook_drift_sentinel",
 ]);
 
 export type SurfaceInventory = {

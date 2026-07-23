@@ -15,14 +15,15 @@ import {
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 describe("MCP cockpit catalog data", () => {
-  it("lists all 33 tools with brokerEffect-free lanes", () => {
-    expect(MCP_TOOL_COUNT).toBe(33);
-    expect(MCP_TOOLS).toHaveLength(33);
+  it("lists all 38 tools with brokerEffect-free lanes", () => {
+    expect(MCP_TOOL_COUNT).toBe(38);
+    expect(MCP_TOOLS).toHaveLength(38);
     expect(MCP_TOOLS.filter((t) => t.lane === "discovery")).toHaveLength(1);
     expect(MCP_TOOLS.filter((t) => t.lane === "ledger")).toHaveLength(6);
     expect(MCP_TOOLS.filter((t) => t.lane === "offline")).toHaveLength(7);
     expect(MCP_TOOLS.filter((t) => t.lane === "shadow")).toHaveLength(6);
     expect(MCP_TOOLS.filter((t) => t.lane === "session")).toHaveLength(13);
+    expect(MCP_TOOLS.filter((t) => t.lane === "elite")).toHaveLength(5);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_list_surface")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_diff_capabilities")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_pilot_doctor")).toBe(true);
@@ -34,6 +35,10 @@ describe("MCP cockpit catalog data", () => {
     expect(MCP_TOOLS.some((t) => t.name === "runbook_session_bind_experiment")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_session_check_inventory")).toBe(true);
     expect(MCP_TOOLS.some((t) => t.name === "runbook_approval_verify")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_surface_lock_receipt")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_process_tick")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_session_seal_capsule")).toBe(true);
+    expect(MCP_TOOLS.some((t) => t.name === "runbook_drift_sentinel")).toBe(true);
   });
 
   it("includes golden journey and offline fixture demo cards", () => {

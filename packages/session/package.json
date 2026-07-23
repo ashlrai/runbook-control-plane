@@ -12,6 +12,18 @@
     "./charter-binding": {
       "types": "./src/charter-binding.ts",
       "default": "./dist/charter-binding.js"
+    },
+    "./pack-import": {
+      "types": "./src/pack-import.ts",
+      "default": "./dist/pack-import.js"
+    },
+    "./process-tick": {
+      "types": "./src/process-tick.ts",
+      "default": "./dist/process-tick.js"
+    },
+    "./process-capsule": {
+      "types": "./src/process-capsule.ts",
+      "default": "./dist/process-capsule.js"
     }
   },
   "sideEffects": false,

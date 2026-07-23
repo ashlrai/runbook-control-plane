@@ -14,6 +14,7 @@ import {
   resolveSessionStore,
   withSession,
 } from "./session-context.js";
+import { registerEliteTools } from "./elite-tools.js";
 import { registerSessionTools } from "./session-tools.js";
 import { registerShadowTools } from "./shadow-tools.js";
 import { buildSurfaceInventory, SERVER_NAME, SERVER_VERSION } from "./surface.js";
@@ -63,6 +64,7 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
   registerOfflineTools(server, service, options);
   registerShadowTools(server, service, options);
   registerSessionTools(server, options);
+  registerEliteTools(server, options);
 
   server.registerTool(
     "runbook_list_surface",

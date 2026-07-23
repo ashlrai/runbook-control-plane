@@ -22,14 +22,15 @@
     "build": "tsc -p tsconfig.json",
     "build:standalone": "esbuild src/proof-cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=release/runbook-proof.mjs",
     "start": "node dist/server.js",
-    "prebuild": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build",
-    "pretest": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build && pnpm --filter @runbook/capsule build && pnpm --filter @runbook/financial-capability-registry build && pnpm --filter @runbook/public-auth-metadata build && pnpm build",
+    "prebuild": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build && pnpm --filter @runbook/capsule-author build",
+    "pretest": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/session build && pnpm --filter @runbook/capsule build && pnpm --filter @runbook/capsule-author build && pnpm --filter @runbook/financial-capability-registry build && pnpm --filter @runbook/public-auth-metadata build && pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
     "@runbook/capsule": "workspace:*",
+    "@runbook/capsule-author": "workspace:*",
     "@runbook/engine": "workspace:*",
     "@runbook/financial-capability-registry": "workspace:*",
     "@runbook/public-auth-metadata": "workspace:*",

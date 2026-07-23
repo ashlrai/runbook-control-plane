@@ -1,7 +1,7 @@
 {
   "schemaVersion": "runbook.tool-contract.v1",
   "serverName": "runbook",
-  "serverVersion": "0.3.2",
+  "serverVersion": "0.4.0",
   "brokerExecutionTools": [],
   "enforcementDefault": "advisory",
   "tools": [
@@ -250,7 +250,7 @@
       "readOnly": false,
       "assurance": "local-session-only",
       "openWorldHint": false,
-      "notes": "Default public-docs 50-tool pin; optional operator-declared names. Not runtime confirmation."
+      "notes": "Default public-docs 50-tool pin; optional pinPreset least-privilege projections; optional operator-declared names. Not runtime confirmation."
     },
     {
       "name": "runbook_session_check_inventory",
@@ -322,6 +322,56 @@
         "humanAuthorityEstablished",
         "authorizationEstablished"
       ]
+    },
+    {
+      "name": "runbook_surface_lock_receipt",
+      "effect": "closed-surface-lock-attestation",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-discovery-only",
+      "openWorldHint": false,
+      "notes": "Digests TOOL_NAMES + version; attests Runbook inventory only — not host MCP exclusivity."
+    },
+    {
+      "name": "runbook_process_tick",
+      "effect": "process-supervisor-tick",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Inventory + optional dual-eval → proceed|warn|stop. Process-layer only; not a hard broker gateway."
+    },
+    {
+      "name": "runbook_session_import_pack",
+      "effect": "local-session-evidence-pack-import",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "Local paste only; refuses URL bodies."
+    },
+    {
+      "name": "runbook_session_seal_capsule",
+      "effect": "local-process-capsule-seal",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": false,
+      "assurance": "self-asserted-author-key-integrity-only",
+      "openWorldHint": false,
+      "notes": "Ephemeral Ed25519; process claims only. Not trading performance or broker-issued."
+    },
+    {
+      "name": "runbook_drift_sentinel",
+      "effect": "tools-list-drift-sentinel",
+      "brokerEffect": false,
+      "idempotent": true,
+      "readOnly": true,
+      "assurance": "local-session-only",
+      "openWorldHint": false,
+      "notes": "tools/list parse + inventory pin check. Optional pinPreset least-privilege projections."
     }
   ],
   "discoveryResources": [

@@ -389,6 +389,9 @@ importers:
       '@runbook/capsule':
         specifier: workspace:*
         version: link:../capsule
+      '@runbook/capsule-author':
+        specifier: workspace:*
+        version: link:../capsule-author
       '@runbook/engine':
         specifier: workspace:*
         version: link:../engine

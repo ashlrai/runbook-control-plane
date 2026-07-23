@@ -201,6 +201,6 @@ export const DOSSIER_LINKS = [
   { href: "/session", label: "Control Plane Session", detail: "Attach status snapshot · local evidence spine" },
   { href: "/safety-card", label: "Safety Bench", detail: "4-of-30 synthetic control self-test" },
   { href: "/registry", label: "Capability Registry", detail: "Public-derived inventory + drift" },
-  { href: "/mcp", label: "MCP cockpit", detail: "Local companion · 33 tools" },
+  { href: "/mcp", label: "MCP cockpit", detail: "Local companion · 38 tools" },
   { href: "/control-room", label: "Control Room", detail: "Advisory preflight workbench" },
 ] as const;
