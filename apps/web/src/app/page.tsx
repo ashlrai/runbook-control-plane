@@ -4,7 +4,7 @@ import { ProductMap } from "@/components/product-map";
 export const metadata: Metadata = {
   title: "Product map · Runbook",
   description:
-    "Three doors for builders: break the agent safely, verify portable evidence, and record a human-owned experiment. Local-first, no credentials, no composite safety score.",
+    "Hosted process lab: control-plane story, session spine, safety bench, portable evidence, and human-owned experiments. Browser-local, no credentials, no composite safety score.",
 };
 
 export default function Home() {

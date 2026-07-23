@@ -7,16 +7,20 @@ import { ProductMap } from "./product-map";
 afterEach(() => cleanup());
 
 describe("Product map landing", () => {
-  it("renders four primary doors with Session first and honest product language", () => {
+  it("renders five primary doors with hosted showcase first and honest product language", () => {
     render(<ProductMap />);
 
     const boundary = screen.getByLabelText("Product boundary").textContent ?? "";
     expect(boundary).toContain("NO LIVE CAPITAL");
     expect(boundary).toContain("NO BROKER CREDENTIALS");
     expect(boundary).toContain("NO COMPOSITE SAFETY SCORE");
+    expect(boundary).toContain("HOSTED LAB · BROWSER-LOCAL STATE");
 
-    expect(screen.getByRole("heading", { name: /Four doors/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Five doors/i })).toBeTruthy();
     expect(document.body.textContent ?? "").toMatch(/Session is the spine/i);
+    expect(screen.getByRole("link", { name: /Hosted control-plane story/i }).getAttribute("href")).toBe(
+      "/showcase",
+    );
     const sessionDoors = screen.getAllByRole("link", { name: /Control Plane Session/i });
     expect(sessionDoors[0]?.getAttribute("href")).toBe("/session");
     expect(screen.getByRole("link", { name: /Break the agent safely/i }).getAttribute("href")).toBe(
@@ -30,13 +34,14 @@ describe("Product map landing", () => {
     ).toBe("/experiments/new");
   });
 
-  it("surfaces session, registry, control room, dossier, and MCP as first-class product links", () => {
+  it("surfaces showcase, session, registry, control room, dossier, and MCP as first-class product links", () => {
     const { container } = render(<ProductMap />);
     const text = container.textContent ?? "";
     const hrefs = Array.from(container.querySelectorAll("a"))
       .map((anchor) => anchor.getAttribute("href"))
       .filter(Boolean);
 
+    expect(hrefs).toContain("/showcase");
     expect(hrefs).toContain("/session");
     expect(hrefs).toContain("/registry");
     expect(hrefs).toContain("/control-room");
@@ -55,3 +60,4 @@ describe("Product map landing", () => {
     expect(text).not.toMatch(/100\/100|agent certified|guaranteed safe|agent verified/i);
   });
 });
+

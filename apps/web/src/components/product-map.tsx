@@ -20,6 +20,14 @@ import styles from "./product-map.module.css";
 
 const doors = [
   {
+    index: "00",
+    title: "Hosted control-plane story",
+    body: "One-click browser story: inventory fail-closed, shadow refine to HFA=0, and session charter dual-eval process deny — zero capital, zero credentials.",
+    href: "/showcase",
+    cta: "Run hosted showcase",
+    meta: ["runbook.ashlr.ai live lab", "Same spine as demo:control-plane", "Not trading performance"],
+  },
+  {
     index: "01",
     title: "Control Plane Session",
     body: "Bind charter digests, public-docs inventory pins, shadow metrics, and dossier status into one local session spine. Fail-closed on unknown tools.",
@@ -54,6 +62,7 @@ const doors = [
 ] as const;
 
 const productSurfaces = [
+  { href: "/showcase", label: "Hosted showcase", detail: "One-click control-plane story · dual-eval · HFA=0" },
   { href: "/session", label: "Control Plane Session", detail: "Charter · inventory pin · shadow · dossier evidence spine" },
   { href: "/registry", label: "Capability Registry", detail: "50-tool public-derived inventory + interactive drift theater" },
   { href: "/control-room", label: "Control Room", detail: "Local charter + real engine preflight tickets" },
@@ -83,6 +92,7 @@ export function ProductMap() {
           <em>Product map</em>
         </Link>
         <nav className={styles.headerNav} aria-label="Product surfaces">
+          <Link href="/showcase">Showcase</Link>
           <Link href="/session">Session</Link>
           <Link href="/registry">Registry</Link>
           <Link href="/control-room">Control Room</Link>
@@ -98,13 +108,13 @@ export function ProductMap() {
         <span>NO LIVE CAPITAL</span>
         <span>NO BROKER CREDENTIALS</span>
         <span>NO COMPOSITE SAFETY SCORE</span>
-        <span>LOCAL-FIRST BUILDER SURFACE</span>
+        <span>HOSTED LAB · BROWSER-LOCAL STATE</span>
       </div>
 
       <section className={styles.hero} aria-labelledby="product-map-title">
         <div>
           <p className={styles.eyebrow}>Runbook · financial agent safety with evidence</p>
-          <h1 id="product-map-title">Four doors. Zero credentials. Exact receipts.</h1>
+          <h1 id="product-map-title">Five doors. Zero credentials. Exact receipts.</h1>
           <p className={styles.lede}>
             Session is the spine. Builders use Runbook to bind control-plane evidence, stress-test
             agent control paths, verify portable proof packages, and record human-owned experiments

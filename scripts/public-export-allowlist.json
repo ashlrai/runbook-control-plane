@@ -13,6 +13,7 @@
     "RELEASE.md",
     "README.public.md",
     "docs/PUBLIC_CLAIM_MATRIX.md",
+    "docs/HOSTING.md",
     "scripts/public-export.mjs",
     "scripts/public-export-allowlist.json",
     "scripts/recursive-elite-demo.mjs",

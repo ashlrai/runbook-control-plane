@@ -12,6 +12,7 @@
     "dev": "next dev",
     "prebuild": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/session build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule-lineage build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/financial-bench build && pnpm build:control-card-assets && pnpm build:worker",
     "build": "next build",
+    "build:vercel": "cd ../.. && pnpm --filter @runbook/web build",
     "start": "next start",
     "lint": "eslint",
     "pretest": "pnpm --filter @runbook/engine build && pnpm --filter @runbook/session build && pnpm --filter @runbook/shadow-lab build && pnpm --filter @runbook/capsule-browser build && pnpm --filter @runbook/capsule-lineage build && pnpm --filter @runbook/creator-proof build && pnpm --filter @runbook/financial-bench build && pnpm build:control-card-assets && pnpm build:worker",

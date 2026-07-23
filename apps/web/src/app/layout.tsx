@@ -5,6 +5,7 @@ import {
   IBM_Plex_Mono,
   Instrument_Sans,
 } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_ORIGIN, SITE_TAGLINE } from "@/lib/site";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -24,9 +25,37 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Runbook — Financial agent safety, with evidence",
-  description:
-    "Define the capital mandate. Break the agent safely. Preserve portable evidence without connecting live money.",
+  metadataBase: new URL(SITE_ORIGIN),
+  title: {
+    default: `${SITE_NAME} — Financial agent process control with evidence`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: "Ashlr AI" }],
+  keywords: [
+    "agent safety",
+    "control plane",
+    "MCP",
+    "financial agent",
+    "proof capsule",
+    "process evidence",
+    "shadow lab",
+  ],
+  alternates: { canonical: SITE_ORIGIN },
+  openGraph: {
+    type: "website",
+    url: SITE_ORIGIN,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — process control with evidence`,
+    description: SITE_TAGLINE,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — process control with evidence`,
+    description: SITE_TAGLINE,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

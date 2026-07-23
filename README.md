@@ -5,6 +5,7 @@ Runbook is a **broker-neutral process, evidence, and control layer for financial
 | | |
 | --- | --- |
 | **Status** | Research prototype — not a production trading system |
+| **Hosted lab** | [runbook.ashlr.ai](https://runbook.ashlr.ai) · browser-local process evidence · [showcase](https://runbook.ashlr.ai/showcase) |
 | **MCP** | `runbook` **v0.3.2** · closed **33-tool** inventory · `brokerExecutionTools: []` |
 | **Capital** | Live-capital allocation: **$0** |
 | **License** | [Apache-2.0](./LICENSE) |

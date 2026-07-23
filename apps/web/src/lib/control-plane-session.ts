@@ -13,7 +13,6 @@
 import { evaluateProposal } from "@runbook/engine/policy";
 import type { RiskPolicy, TradeProposal } from "@runbook/engine/schema";
 import type {
-  CharterBindingEnforcement,
   ControlPlaneSession,
   DossierAttachment,
   InventoryCheckResult,
@@ -21,7 +20,12 @@ import type {
   InventoryToolEntry,
   SessionEvidencePack,
 } from "@runbook/session";
-import { resolveCharterDualEval, type CharterDualEvalResult } from "@runbook/session";
+/** Pure dual-eval — subpath avoids node:fs from SessionStore in browser bundles. */
+import {
+  resolveCharterDualEval,
+  type CharterBindingEnforcement,
+  type CharterDualEvalResult,
+} from "@runbook/session/charter-binding";
 import { REFERENCE_ELITE_POLICY, WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import { DOSSIER_COUNTS, PROCESS_BRIDGED_IDS } from "./dossier-status-data";
 import {

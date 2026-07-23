@@ -8,8 +8,13 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./charter-binding": {
+      "types": "./src/charter-binding.ts",
+      "default": "./dist/charter-binding.js"
     }
   },
+  "sideEffects": false,
   "scripts": {
     "pretest": "pnpm --filter @runbook/engine build && pnpm build",
     "build": "tsc -p tsconfig.json",
