@@ -6,7 +6,7 @@ It runs beside brokerage tools without receiving credentials or placing trades.
 
 | Property | Value |
 | --- | --- |
-| Server name / version | `runbook` / `0.3.1` |
+| Server name / version | `runbook` / `0.3.2` |
 | Tools | 33 (closed inventory; `brokerExecutionTools: []`) |
 | Transport | stdio |
 | Network | none required for golden path |

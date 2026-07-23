@@ -103,6 +103,14 @@ export const controlPlaneSessionSchema = z
     ledgerHeadHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     inventoryPin: inventoryPinSchema.optional(),
     inventoryEnforcement: z.enum(["off", "warn", "fail-closed"]).default("fail-closed"),
+    /**
+     * How preflight dual-eval treats session charter vs experiment ledger charter.
+     * - off: skip dual-eval (report no-session binding)
+     * - warn (default): report mismatch; process `allowed` stays ledger result
+     * - fail-closed: process `allowed` = ledger AND session (missing charter → deny)
+     * Never a hard broker gateway.
+     */
+    charterBindingEnforcement: z.enum(["off", "warn", "fail-closed"]).default("warn"),
     shadowGenerations: z.array(shadowGenerationSummarySchema).max(32).default([]),
     lastShadowHardFalseAllows: z.number().int().nonnegative().optional(),
     lastShadowHardFalseDenies: z.number().int().nonnegative().optional(),

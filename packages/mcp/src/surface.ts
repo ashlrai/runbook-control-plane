@@ -7,7 +7,7 @@ import { PROMPT_NAMES } from "./prompts.js";
 import { STATIC_RESOURCE_URIS } from "./resources.js";
 
 export const SERVER_NAME = "runbook" as const;
-export const SERVER_VERSION = "0.3.1" as const;
+export const SERVER_VERSION = "0.3.2" as const;
 
 /** Full closed tool list in stable discovery order. */
 export const TOOL_NAMES = [

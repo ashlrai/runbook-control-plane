@@ -10,8 +10,10 @@
  * Not composite safety certification.
  */
 
-import type { RiskPolicy } from "@runbook/engine/schema";
+import { evaluateProposal } from "@runbook/engine/policy";
+import type { RiskPolicy, TradeProposal } from "@runbook/engine/schema";
 import type {
+  CharterBindingEnforcement,
   ControlPlaneSession,
   DossierAttachment,
   InventoryCheckResult,
@@ -19,6 +21,7 @@ import type {
   InventoryToolEntry,
   SessionEvidencePack,
 } from "@runbook/session";
+import { resolveCharterDualEval, type CharterDualEvalResult } from "@runbook/session";
 import { REFERENCE_ELITE_POLICY, WEAK_STARTER_POLICY } from "@runbook/shadow-lab";
 import { DOSSIER_COUNTS, PROCESS_BRIDGED_IDS } from "./dossier-status-data";
 import {
@@ -462,6 +465,19 @@ function isSessionLike(value: unknown): value is ControlPlaneSession {
   );
 }
 
+/** Normalize older localStorage sessions that predate charterBindingEnforcement. */
+function normalizeSession(session: ControlPlaneSession): ControlPlaneSession {
+  return {
+    ...session,
+    inventoryEnforcement: session.inventoryEnforcement ?? "fail-closed",
+    charterBindingEnforcement: session.charterBindingEnforcement ?? "warn",
+    shadowGenerations: session.shadowGenerations ?? [],
+    dossierAttachments: session.dossierAttachments ?? [],
+    notes: session.notes ?? [],
+    limitations: session.limitations ?? [...SESSION_LIMITATIONS],
+  };
+}
+
 function readBag(): BrowserSessionBag {
   if (typeof localStorage === "undefined") return emptyBag();
   try {
@@ -474,7 +490,7 @@ function readBag(): BrowserSessionBag {
     const sessions: Record<string, ControlPlaneSession> = {};
     if (bag.sessions && typeof bag.sessions === "object") {
       for (const [id, session] of Object.entries(bag.sessions)) {
-        if (isSessionLike(session)) sessions[id] = session;
+        if (isSessionLike(session)) sessions[id] = normalizeSession(session);
       }
     }
     return { schemaVersion: "runbook.control-plane-sessions-bag.v1", sessions };
@@ -510,6 +526,7 @@ export class BrowserSessionStore {
     experimentId?: string;
     inventoryPin?: InventoryPin;
     inventoryEnforcement?: "off" | "warn" | "fail-closed";
+    charterBindingEnforcement?: CharterBindingEnforcement;
     createdAt?: string;
   }): Promise<ControlPlaneSession> {
     const now = input.createdAt ?? new Date().toISOString();
@@ -534,6 +551,7 @@ export class BrowserSessionStore {
       ...(input.experimentId ? { experimentId: input.experimentId } : {}),
       ...(input.inventoryPin ? { inventoryPin: input.inventoryPin } : {}),
       inventoryEnforcement: input.inventoryEnforcement ?? "fail-closed",
+      charterBindingEnforcement: input.charterBindingEnforcement ?? "warn",
       shadowGenerations: [],
       dossierAttachments: [],
       notes: [],
@@ -596,6 +614,13 @@ export class BrowserSessionStore {
     inventoryEnforcement: "off" | "warn" | "fail-closed",
   ): Promise<ControlPlaneSession> {
     return this.update(sessionId, (s) => ({ ...s, inventoryEnforcement }));
+  }
+
+  async setCharterBindingEnforcement(
+    sessionId: string,
+    charterBindingEnforcement: CharterBindingEnforcement,
+  ): Promise<ControlPlaneSession> {
+    return this.update(sessionId, (s) => ({ ...s, charterBindingEnforcement }));
   }
 
   async attachDossier(
@@ -864,11 +889,64 @@ export async function refineCharterIntoSession(options: {
   };
 }
 
+/**
+ * Browser dual-eval demo: weak ledger charter (allows options) vs session charter.
+ * Process evidence only — not a broker gateway; no ledger write.
+ */
+export function demoCharterDualEval(session: ControlPlaneSession): CharterDualEvalResult & {
+  proposalId: string;
+  brokerEffect: false;
+  compositeScore: false;
+  notTradingPerformance: true;
+} {
+  const proposal: TradeProposal = {
+    proposalId: "browser-dual-eval-option",
+    experimentId: session.experimentId ?? "RUN-BROWSER-DUAL-EVAL",
+    symbol: "SPY",
+    instrument: "option",
+    side: "buy",
+    notional: 50,
+    projectedPositionNotional: 50,
+    dailyTradesAfter: 1,
+    currentDrawdownPercent: 0.5,
+    hasThesis: true,
+    hasInvalidation: true,
+    evidenceSourceCount: 2,
+  };
+  // Weak ledger twin: options allowed (process demo only).
+  const weakLedger: RiskPolicy = {
+    ...clonePolicy(WEAK_STARTER_POLICY),
+    allowedInstruments: ["equity", "option", "crypto"],
+    allowedSymbols: [],
+    deniedSymbols: [],
+  };
+  const ledgerAllowed = evaluateProposal(weakLedger, proposal).allowed;
+  const sessionAllowed =
+    session.charter !== undefined ? evaluateProposal(session.charter, proposal).allowed : undefined;
+  const dual = resolveCharterDualEval({
+    ledgerAllowed,
+    sessionPresent: true,
+    sessionHasCharter: session.charter !== undefined,
+    ...(sessionAllowed !== undefined ? { sessionAllowed } : {}),
+    enforcement: session.charterBindingEnforcement ?? "warn",
+  });
+  return {
+    ...dual,
+    proposalId: proposal.proposalId,
+    brokerEffect: false,
+    compositeScore: false,
+    notTradingPerformance: true,
+  };
+}
+
 export type {
   ControlPlaneSession,
+  CharterBindingEnforcement,
+  CharterDualEvalResult,
   DossierAttachment,
   InventoryCheckResult,
   InventoryPin,
   SessionEvidencePack,
 };
 export type { GenerationRecord };
+export { resolveCharterDualEval };

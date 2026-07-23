@@ -5,10 +5,12 @@ import { charterDigest, controlPlaneSessionSchema, sessionEvidencePackSchema } f
 import {
   BROWSER_SESSION_STORAGE_KEY,
   BrowserSessionStore,
+  browserSessionStore,
   buildDossierStatusSnapshotAttachment,
   buildPublicDocsInventoryPin,
   browserCharterDigest,
   checkObservedToolsAgainstPin,
+  demoCharterDualEval,
   elitePolicy,
   importToolsListAgainstPin,
   parseSessionIdQuery,
@@ -148,6 +150,28 @@ describe("control-plane-session browser adapter", () => {
       toolNames: ["get_accounts"],
       format: "string-array",
     });
+  });
+
+  it("demoCharterDualEval process-denies options under fail-closed elite session", async () => {
+    const session = await browserSessionStore.create({
+      label: "Dual-eval unit",
+      charterSeed: "elite",
+      charterBindingEnforcement: "fail-closed",
+    });
+    const result = demoCharterDualEval(session);
+    expect(result.ledgerAllowed).toBe(true);
+    expect(result.sessionPolicyAllowed).toBe(false);
+    expect(result.sessionCharterBinding).toBe("mismatch-session-denies");
+    expect(result.allowed).toBe(false);
+    expect(result.processDeniedBySession).toBe(true);
+    expect(result.brokerEffect).toBe(false);
+    expect(result.compositeScore).toBe(false);
+
+    await browserSessionStore.setCharterBindingEnforcement(session.sessionId, "warn");
+    const warned = demoCharterDualEval(browserSessionStore.read(session.sessionId));
+    expect(warned.allowed).toBe(true);
+    expect(warned.processDeniedBySession).toBe(false);
+    expect(warned.sessionCharterBinding).toBe("mismatch-session-denies");
   });
 
   it("importToolsListAgainstPin fail-closes sample tools/list with place_crypto_order_unknown", async () => {

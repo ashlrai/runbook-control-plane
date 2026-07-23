@@ -51,6 +51,7 @@ export type ControlPlaneStoryReceipt = {
   inventoryImportOk: boolean;
   inventoryUnknownCount: number;
   preflightSessionBinding: string;
+  preflightFailClosedDenied: boolean;
   experimentBound: boolean;
   agentEvalProcessCorrect: boolean;
   packSchemaVersion: string;
@@ -129,6 +130,7 @@ export async function runControlPlaneStory(
     inventoryImportOk: false,
     inventoryUnknownCount: -1,
     preflightSessionBinding: "unset",
+    preflightFailClosedDenied: false,
     experimentBound: false,
     agentEvalProcessCorrect: false,
     packSchemaVersion: "",
@@ -152,6 +154,8 @@ export async function runControlPlaneStory(
       label: "Control plane story (weak charter)",
       charter: WEAK_STARTER_POLICY,
       inventoryEnforcement: "fail-closed",
+      // Story keeps warn until after elite charter is set; fail-closed probe runs later.
+      charterBindingEnforcement: "warn",
     });
     if (session.sessionId !== sessionId) {
       errors.push("session-id-mismatch");
@@ -253,6 +257,60 @@ export async function runControlPlaneStory(
       }
       if (digest.length !== 64) errors.push("session-charter-digest-invalid");
       if (!preflight.result.allowed) errors.push("clean-preflight-expected-allowed");
+    }
+
+    // 5c. Fail-closed dual-eval: weak ledger allows options; elite session denies → process deny
+    await store.setCharterBindingEnforcement(sessionId, "fail-closed");
+    const weakLedger = await service.createExperiment({
+      experimentId: `${experimentId}-WEAK-LEDGER`,
+      name: "Weak ledger for dual-eval probe",
+      question: "Does fail-closed session charter process-deny options?",
+      benchmark: "SPY",
+      observationDays: 1,
+      policy: {
+        ...WEAK_STARTER_POLICY,
+        allowedInstruments: ["equity", "option"],
+        allowedSymbols: [],
+        deniedSymbols: [],
+      },
+      actor,
+      occurredAt: "2026-07-22T20:06:00.000Z",
+    });
+    if (!weakLedger.experiment?.hash) errors.push("weak-ledger-create-failed");
+    const optionProbe = {
+      proposalId: "story-opt-deny-001",
+      experimentId: `${experimentId}-WEAK-LEDGER`,
+      symbol: "SPY",
+      instrument: "option" as const,
+      side: "buy" as const,
+      notional: 50,
+      projectedPositionNotional: 50,
+      dailyTradesAfter: 1,
+      currentDrawdownPercent: 0.5,
+      hasThesis: true,
+      hasInvalidation: true,
+      evidenceSourceCount: 2,
+    };
+    const optionLedger = await service.preflight(optionProbe, actor, "2026-07-22T20:07:00.000Z");
+    const sessionFc = await store.read(sessionId);
+    if (sessionFc.charter === undefined) {
+      errors.push("session-charter-missing-for-fail-closed-probe");
+    } else {
+      const sessionAllowsOption = evaluateProposal(sessionFc.charter, optionProbe).allowed;
+      // Elite improved charter should deny options; weak ledger allows.
+      if (sessionAllowsOption) {
+        errors.push("elite-session-unexpectedly-allows-option");
+      }
+      if (!optionLedger.result.allowed) {
+        errors.push("weak-ledger-option-expected-allowed");
+      }
+      // Mirror resolveCharterDualEval fail-closed: process deny when session denies.
+      const processAllowed = optionLedger.result.allowed && sessionAllowsOption;
+      receipt.preflightFailClosedDenied =
+        optionLedger.result.allowed === true && processAllowed === false;
+      if (!receipt.preflightFailClosedDenied) {
+        errors.push("fail-closed-dual-eval-expected-process-deny");
+      }
     }
 
     // 6. agent_eval

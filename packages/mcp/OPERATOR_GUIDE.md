@@ -2,7 +2,7 @@
 
 **Audience:** Mason (builder/operator) and coding agents using the Runbook MCP companion.  
 **Checkout truth date:** 2026-07-23  
-**Server surface:** `runbook` MCP `0.3.1` · closed **33** tools · `brokerExecutionTools: []`
+**Server surface:** `runbook` MCP `0.3.2` · closed **33** tools · `brokerExecutionTools: []`
 
 This guide is operational, not marketing. Prefer exact package paths and tool names over slogans. When package docs and UI copy diverge, package sources and `packages/mcp/src/surface.ts` win.
 
@@ -231,7 +231,7 @@ Start a **new** agent task after install so tools, resources, and prompts redisc
 
 ## 4. MCP tool catalog
 
-Server: `runbook` / `0.3.1`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **33**).  
+Server: `runbook` / `0.3.2`. Source of truth: `packages/mcp/src/surface.ts` (`TOOL_NAMES`, length **33**).  
 All tools: `openWorldHint: false`, no broker side effects. Closed inventory — do not invent tools.  
 Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13** control-plane session.
 
@@ -246,7 +246,7 @@ Breakdown: **1** discovery + **6** ledger + **7** offline + **6** shadow + **13*
 | Tool | Effect | Read-only |
 | --- | --- | --- |
 | `runbook_create_experiment` | Record experiment + charter v1 | no |
-| `runbook_preflight_trade` | Record proposal + advisory policy checks | no |
+| `runbook_preflight_trade` | Record proposal + advisory policy checks; dual-eval session charter when active (`ledgerAllowed`, `sessionCharterBinding`, optional process deny under `charterBindingEnforcement: fail-closed`) | no |
 | `runbook_record_approval` | Caller-asserted human decision (unauthenticated) | no |
 | `runbook_record_execution` | Import owner-controlled fill data | no |
 | `runbook_list_events` | Read local ledger events | yes |
@@ -285,7 +285,7 @@ Local process/evidence spine via `@runbook/session`. Files under `RUNBOOK_DATA_D
 
 | Tool | Effect | Read-only | Notes |
 | --- | --- | --- | --- |
-| `runbook_session_create` | Create session (label, optional policy / sessionId) | no | optional `inventoryEnforcement` |
+| `runbook_session_create` | Create session (label, optional policy / sessionId) | no | optional `inventoryEnforcement`, `charterBindingEnforcement` (default `warn`) |
 | `runbook_session_use` | Mark active session (local marker only) | no | writes `active-session.json`; not broker authorization |
 | `runbook_session_get` | Read session by id | yes | local filesystem only |
 | `runbook_session_export` | Evidence pack export | yes | local-control-plane-export-only |

@@ -137,6 +137,46 @@ describe("Session dashboard", () => {
     clickSpy.mockRestore();
   });
 
+  it("cycles charter binding and process-denies option under fail-closed dual-eval", async () => {
+    render(<SessionDashboard />);
+
+    fireEvent.change(screen.getByLabelText("Charter seed policy"), {
+      target: { value: "elite" },
+    });
+    fireEvent.change(screen.getByLabelText("Session label"), {
+      target: { value: "Dual-eval demo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Dual-eval demo/i })).toBeTruthy();
+    });
+
+    expect(screen.getByLabelText("Charter binding enforcement").textContent).toMatch(/warn/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /Cycle charter binding/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Charter binding enforcement").textContent).toMatch(
+        /fail-closed/i,
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Dual-eval option probe/i }));
+    await waitFor(() => {
+      const panel = screen.getByLabelText("Charter dual-eval result");
+      expect(panel).toBeTruthy();
+      expect(panel.textContent).toMatch(/PROCESS DENY \(session\)/);
+      expect(panel.textContent).toMatch(/mismatch-session-denies/);
+      expect(panel.textContent).toMatch(/processDeniedBySession=true/);
+      expect(panel.textContent).toMatch(/brokerEffect=false/);
+      expect(panel.textContent).toMatch(/ledgerAllowed=true/);
+      expect(panel.textContent).toMatch(/processAllowed=false/);
+    });
+
+    const sessionId = browserSessionStore.list()[0]!.sessionId;
+    expect(browserSessionStore.read(sessionId).charterBindingEnforcement).toBe("fail-closed");
+  });
+
   it("imports tools/list sample JSON and fail-closes on place_crypto_order_unknown", async () => {
     render(<SessionDashboard />);
 

@@ -10,6 +10,7 @@ import {
   generateApprovalKeyPair,
   parseToolsListJson,
   parseToolsListJsonText,
+  resolveCharterDualEval,
   ROBINHOOD_TRADING_PUBLIC_DOCS_TOOL_NAMES,
   SessionStore,
   signApprovalIntent,
@@ -76,6 +77,65 @@ describe("@runbook/session", () => {
     expect(pack.session.inventoryPin?.toolSetSha256).toHaveLength(64);
     expect(pack.session.dossierAttachments).toHaveLength(1);
     expect(pack.notTradingPerformance).toBe(true);
+  });
+
+  it("resolveCharterDualEval warn reports mismatch without process deny", () => {
+    const warn = resolveCharterDualEval({
+      ledgerAllowed: true,
+      sessionPresent: true,
+      sessionHasCharter: true,
+      sessionAllowed: false,
+      enforcement: "warn",
+    });
+    expect(warn).toMatchObject({
+      sessionCharterBinding: "mismatch-session-denies",
+      ledgerAllowed: true,
+      allowed: true,
+      processDeniedBySession: false,
+      charterBindingEnforcement: "warn",
+    });
+    expect(warn.warningSuffix).toMatch(/would DENY/i);
+
+    const failClosed = resolveCharterDualEval({
+      ledgerAllowed: true,
+      sessionPresent: true,
+      sessionHasCharter: true,
+      sessionAllowed: false,
+      enforcement: "fail-closed",
+    });
+    expect(failClosed).toMatchObject({
+      sessionCharterBinding: "mismatch-session-denies",
+      ledgerAllowed: true,
+      allowed: false,
+      processDeniedBySession: true,
+      charterBindingEnforcement: "fail-closed",
+    });
+    expect(failClosed.warningSuffix).toMatch(/fail-closed process deny/i);
+
+    const missing = resolveCharterDualEval({
+      ledgerAllowed: true,
+      sessionPresent: true,
+      sessionHasCharter: false,
+      enforcement: "fail-closed",
+    });
+    expect(missing).toMatchObject({
+      sessionCharterBinding: "no-session-charter",
+      allowed: false,
+      processDeniedBySession: true,
+    });
+  });
+
+  it("persists charterBindingEnforcement on create and update", async () => {
+    dir = await mkdtemp(join(tmpdir(), "runbook-session-cbe-"));
+    const store = new SessionStore({ rootDir: dir });
+    const session = await store.create({
+      sessionId: "CPS-CBE-001",
+      label: "Charter binding enforcement",
+      charterBindingEnforcement: "fail-closed",
+    });
+    expect(session.charterBindingEnforcement).toBe("fail-closed");
+    const updated = await store.setCharterBindingEnforcement("CPS-CBE-001", "warn");
+    expect(updated.charterBindingEnforcement).toBe("warn");
   });
 
   it("fail-closes on unknown observed tools when pin is enforced", () => {

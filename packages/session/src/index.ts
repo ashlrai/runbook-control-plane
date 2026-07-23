@@ -42,6 +42,14 @@ export {
 export { SessionStore, defaultSessionRoot } from "./store.js";
 
 export {
+  resolveCharterDualEval,
+  type CharterBindingEnforcement,
+  type SessionCharterBinding,
+  type CharterDualEvalInput,
+  type CharterDualEvalResult,
+} from "./charter-binding.js";
+
+export {
   generateApprovalKeyPair,
   fingerprintSpki,
   canonicalApprovalPayload,

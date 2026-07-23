@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import { evaluateProposal } from "@runbook/engine/policy";
 import { policyCheckSchema, riskPolicySchema, tradeProposalSchema } from "@runbook/engine/schema";
-import { charterDigest } from "@runbook/session";
+import { charterDigest, resolveCharterDualEval } from "@runbook/session";
 import { registerOfflineTools, type OfflineToolsOptions } from "./offline-tools.js";
 import { registerRunbookPrompts } from "./prompts.js";
 import { withToolErrors } from "./protocol.js";
@@ -151,7 +151,7 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
     {
       title: "Preflight Trade Proposal",
       description:
-        "Record and evaluate a proposed trade against the active local charter. When a control-plane session is active (sessionId arg, RUNBOOK_SESSION_ID, or active-session.json) and the session has a charter, also evaluates against that session charter digest and notes mismatches. Advisory only: does not place, route, preview, or approve a broker order. Account state fields are caller-supplied. See runbook://docs/assurance and runbook://playbooks/control-plane-session.",
+        "Record and evaluate a proposed trade against the active local (ledger) charter. When a control-plane session is active (sessionId arg, RUNBOOK_SESSION_ID, or active-session.json), dual-evaluates the session charter and reports sessionCharterBinding. Session charterBindingEnforcement: off | warn (default) | fail-closed — fail-closed sets process allowed=false when the session charter denies (or is missing), while ledgerAllowed still reflects the experiment charter; still not a hard broker gateway. Does not place, route, preview, or approve a broker order. Account state fields are caller-supplied. See runbook://docs/assurance and runbook://playbooks/control-plane-session.",
       inputSchema: {
         proposal: tradeProposalSchema,
         actor: z.object(actorShape),
@@ -164,6 +164,7 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
       },
       outputSchema: {
         allowed: z.boolean(),
+        ledgerAllowed: z.boolean(),
         enforcement: z.literal("advisory"),
         checks: z.array(policyCheckSchema),
         proposalHash: z.string(),
@@ -180,6 +181,8 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
           "mismatch-session-denies",
           "mismatch-session-allows",
         ]),
+        charterBindingEnforcement: z.enum(["off", "warn", "fail-closed"]),
+        processDeniedBySession: z.boolean(),
         brokerEffect: z.literal(false),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -190,51 +193,59 @@ export function createRunbookServer(service: RunbookService, options?: OfflineTo
       const store = resolveSessionStore(options);
 
       let sessionCharterDigest: string | undefined;
-      let sessionPolicyAllowed: boolean | undefined;
-      let sessionCharterBinding:
-        | "no-session"
-        | "no-session-charter"
-        | "matched-allowed"
-        | "matched-denied"
-        | "mismatch-session-denies"
-        | "mismatch-session-allows" = "no-session";
+      let dual = resolveCharterDualEval({
+        ledgerAllowed: preflight.result.allowed,
+        sessionPresent: false,
+        sessionHasCharter: false,
+        enforcement: "warn",
+      });
 
       if (sessionId !== undefined) {
         const session = await store.read(sessionId);
+        const enforcement = session.charterBindingEnforcement ?? "warn";
         if (session.charter === undefined) {
-          sessionCharterBinding = "no-session-charter";
+          dual = resolveCharterDualEval({
+            ledgerAllowed: preflight.result.allowed,
+            sessionPresent: true,
+            sessionHasCharter: false,
+            enforcement,
+          });
         } else {
           sessionCharterDigest = session.charterDigest ?? charterDigest(session.charter);
           const sessionEval = evaluateProposal(session.charter, proposal);
-          sessionPolicyAllowed = sessionEval.allowed;
-          if (sessionEval.allowed === preflight.result.allowed) {
-            sessionCharterBinding = sessionEval.allowed ? "matched-allowed" : "matched-denied";
-          } else if (sessionEval.allowed === false && preflight.result.allowed === true) {
-            sessionCharterBinding = "mismatch-session-denies";
-          } else {
-            sessionCharterBinding = "mismatch-session-allows";
-          }
+          dual = resolveCharterDualEval({
+            ledgerAllowed: preflight.result.allowed,
+            sessionPresent: true,
+            sessionHasCharter: true,
+            sessionAllowed: sessionEval.allowed,
+            enforcement,
+          });
           await appendSessionNote(
             store,
             sessionId,
-            `preflight ${proposal.proposalId}: ledgerAllowed=${preflight.result.allowed} sessionAllowed=${sessionEval.allowed} binding=${sessionCharterBinding}`,
+            `preflight ${proposal.proposalId}: ledgerAllowed=${dual.ledgerAllowed} sessionAllowed=${sessionEval.allowed} binding=${dual.sessionCharterBinding} enforcement=${enforcement} processAllowed=${dual.allowed}`,
           );
         }
       }
 
       return {
         ...preflight.result,
+        // Process-layer effective allow (may process-deny under fail-closed session charter).
+        allowed: dual.allowed,
+        ledgerAllowed: dual.ledgerAllowed,
         proposalHash: preflight.proposalEvent.hash,
         preflightHash: preflight.preflightEvent.hash,
         warning:
           "Runbook preflight is advisory. It does not prevent direct use of a broker tool." +
-          (sessionCharterBinding === "mismatch-session-denies"
-            ? " Session charter would DENY this proposal while the experiment ledger charter allowed it — treat as process risk."
-            : ""),
+          dual.warningSuffix,
         ...(sessionId !== undefined ? { sessionId } : {}),
         ...(sessionCharterDigest !== undefined ? { sessionCharterDigest } : {}),
-        ...(sessionPolicyAllowed !== undefined ? { sessionPolicyAllowed } : {}),
-        sessionCharterBinding,
+        ...(dual.sessionPolicyAllowed !== undefined
+          ? { sessionPolicyAllowed: dual.sessionPolicyAllowed }
+          : {}),
+        sessionCharterBinding: dual.sessionCharterBinding,
+        charterBindingEnforcement: dual.charterBindingEnforcement,
+        processDeniedBySession: dual.processDeniedBySession,
         brokerEffect: false as const,
       };
     }),

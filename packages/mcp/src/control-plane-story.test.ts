@@ -14,6 +14,8 @@ describe("control-plane-story", () => {
     expect(result.receipt.fixedPoint).toBe(true);
     expect(result.receipt.inventoryToolCount).toBe(50);
     expect(result.receipt.experimentBound).toBe(true);
+    expect(result.receipt.preflightSessionBinding).toBe("matched-allowed");
+    expect(result.receipt.preflightFailClosedDenied).toBe(true);
     expect(result.receipt.agentEvalProcessCorrect).toBe(true);
     expect(result.receipt.packSchemaVersion).toBe("runbook.session-evidence-pack.v1");
     expect(result.receipt.brokerEffect).toBe(false);

@@ -174,6 +174,7 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
         sessionId: sessionIdSchema.optional(),
         experimentId: z.string().trim().min(1).max(120).optional(),
         inventoryEnforcement: z.enum(["off", "warn", "fail-closed"]).optional(),
+        charterBindingEnforcement: z.enum(["off", "warn", "fail-closed"]).optional(),
       },
       outputSchema: {
         schemaVersion: z.literal("runbook.session-create.v1"),
@@ -192,6 +193,9 @@ export function registerSessionTools(server: McpServer, options?: OfflineToolsOp
         ...(input.experimentId !== undefined ? { experimentId: input.experimentId } : {}),
         ...(input.inventoryEnforcement !== undefined
           ? { inventoryEnforcement: input.inventoryEnforcement }
+          : {}),
+        ...(input.charterBindingEnforcement !== undefined
+          ? { charterBindingEnforcement: input.charterBindingEnforcement }
           : {}),
       });
       return {

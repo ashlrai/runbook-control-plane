@@ -24,6 +24,7 @@ import {
   buildDossierStatusSnapshotAttachment,
   buildPublicDocsInventoryPin,
   checkObservedToolsAgainstPin,
+  demoCharterDualEval,
   downloadEvidencePack,
   importToolsListAgainstPin,
   refineCharterIntoSession,
@@ -32,6 +33,8 @@ import {
   SAMPLE_TOOLS_LIST_JSON,
   shadowLabHrefForSession,
   shadowTrendFromSession,
+  type CharterBindingEnforcement,
+  type CharterDualEvalResult,
   type CharterSeedKind,
   type ControlPlaneSession,
   type InventoryCheckResult,
@@ -53,6 +56,14 @@ export function SessionDashboard() {
   const [inventoryCheck, setInventoryCheck] = useState<InventoryCheckResult | null>(null);
   const [toolsListJson, setToolsListJson] = useState("");
   const [toolsListImport, setToolsListImport] = useState<ToolsListImportResult | null>(null);
+  const [dualEval, setDualEval] = useState<
+    (CharterDualEvalResult & {
+      proposalId: string;
+      brokerEffect: false;
+      compositeScore: false;
+      notTradingPerformance: true;
+    }) | null
+  >(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
@@ -88,6 +99,7 @@ export function SessionDashboard() {
       setSelectedId(session.sessionId);
       setInventoryCheck(null);
       setToolsListImport(null);
+      setDualEval(null);
       setStatusNote(`Created session ${session.sessionId}`);
       refresh();
     } catch (error) {
@@ -244,6 +256,44 @@ export function SessionDashboard() {
       setBusy(false);
     }
   }, [selected, refresh]);
+
+  const cycleCharterBindingEnforcement = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const order: CharterBindingEnforcement[] = ["warn", "fail-closed", "off"];
+      const current = selected.charterBindingEnforcement ?? "warn";
+      const next = order[(order.indexOf(current) + 1) % order.length]!;
+      await browserSessionStore.setCharterBindingEnforcement(selected.sessionId, next);
+      setDualEval(null);
+      setStatusNote(
+        `charterBindingEnforcement → ${next} · process-layer only, not a hard broker gateway`,
+      );
+      refresh();
+    } catch (error) {
+      setStatusNote(
+        error instanceof Error ? error.message : "Could not set charter binding enforcement.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [selected, refresh]);
+
+  const runDualEvalDemo = useCallback(() => {
+    if (!selected) return;
+    try {
+      // Re-read so enforcement / charter are live after toggles.
+      const live = browserSessionStore.read(selected.sessionId);
+      const result = demoCharterDualEval(live);
+      setDualEval(result);
+      setStatusNote(
+        `Dual-eval · binding=${result.sessionCharterBinding} · ledgerAllowed=${String(result.ledgerAllowed)} · processAllowed=${String(result.allowed)} · enforcement=${result.charterBindingEnforcement}`,
+      );
+    } catch (error) {
+      setDualEval(null);
+      setStatusNote(error instanceof Error ? error.message : "Dual-eval demo failed.");
+    }
+  }, [selected]);
 
   const exportPack = useCallback(async () => {
     if (!selected) return;
@@ -447,6 +497,11 @@ export function SessionDashboard() {
                     <strong>{selected.dossierAttachments.length}</strong>
                     <em>architecture evidence only</em>
                   </div>
+                  <div className={styles.metric} aria-label="Charter binding enforcement">
+                    <span>Charter binding</span>
+                    <strong>{selected.charterBindingEnforcement ?? "warn"}</strong>
+                    <em>dual-eval · not broker gateway</em>
+                  </div>
                 </div>
                 <div className={styles.actions}>
                   <button
@@ -457,6 +512,24 @@ export function SessionDashboard() {
                   >
                     <Repeat2 size={14} aria-hidden="true" />
                     Run refine into session
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    onClick={() => void cycleCharterBindingEnforcement()}
+                    disabled={busy}
+                  >
+                    <LockKeyhole size={14} aria-hidden="true" />
+                    Cycle charter binding
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    onClick={() => runDualEvalDemo()}
+                    disabled={busy || !selected.charter}
+                  >
+                    <ShieldCheck size={14} aria-hidden="true" />
+                    Dual-eval option probe
                   </button>
                   <Link
                     className={styles.ghostBtn}
@@ -537,6 +610,55 @@ export function SessionDashboard() {
                   )}
                 </div>
               </div>
+
+              {dualEval ? (
+                <div className={styles.panel} aria-label="Charter dual-eval result">
+                  <div className={styles.panelHead}>
+                    <div>
+                      <p className={styles.eyebrow}>Charter dual-eval</p>
+                      <h2>Ledger vs session · process layer</h2>
+                    </div>
+                    <code className={styles.mono} style={{ padding: "6px 8px" }}>
+                      {dualEval.sessionCharterBinding}
+                    </code>
+                  </div>
+                  <div className={styles.sectionBody}>
+                    <p>
+                      Weak ledger charter allows options; session charter (elite/refined) typically
+                      denies. Under <code>fail-closed</code>, process <code>allowed</code> becomes
+                      false while <code>ledgerAllowed</code> stays true. Still not a hard broker
+                      gateway.
+                    </p>
+                    <div
+                      className={styles.checkResult}
+                      data-ok={!dualEval.processDeniedBySession && dualEval.allowed}
+                      aria-live="polite"
+                    >
+                      <strong>
+                        {dualEval.processDeniedBySession
+                          ? "PROCESS DENY (session)"
+                          : dualEval.allowed
+                            ? "PROCESS ALLOW"
+                            : "PROCESS DENY"}
+                      </strong>
+                      <span>
+                        ledgerAllowed={String(dualEval.ledgerAllowed)} · sessionPolicyAllowed=
+                        {String(dualEval.sessionPolicyAllowed)} · processAllowed=
+                        {String(dualEval.allowed)} · enforcement=
+                        {dualEval.charterBindingEnforcement}
+                      </span>
+                      <span>
+                        binding={dualEval.sessionCharterBinding} · processDeniedBySession=
+                        {String(dualEval.processDeniedBySession)} · brokerEffect=false ·
+                        compositeScore=false
+                      </span>
+                      {dualEval.warningSuffix ? (
+                        <code className={styles.mono}>{dualEval.warningSuffix.trim()}</code>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className={styles.panel}>
                 <div className={styles.panelHead}>

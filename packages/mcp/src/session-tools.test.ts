@@ -104,7 +104,7 @@ describe("control plane session MCP tools", () => {
     });
     expect(surface.isError).not.toBe(true);
     const body = structured(surface);
-    expect(body.serverVersion).toBe("0.3.1");
+    expect(body.serverVersion).toBe("0.3.2");
     expect(body.brokerExecutionTools).toEqual([]);
     const tools = body.tools as Array<{ name: string; offline: boolean; openWorldHint: boolean }>;
     expect(tools).toHaveLength(33);
@@ -644,10 +644,13 @@ describe("control plane session MCP tools", () => {
     expect(clean.isError).not.toBe(true);
     expect(structured(clean)).toMatchObject({
       allowed: true,
+      ledgerAllowed: true,
       enforcement: "advisory",
       sessionId: "CPS-PREFLIGHT-001",
       sessionPolicyAllowed: true,
       sessionCharterBinding: "matched-allowed",
+      charterBindingEnforcement: "warn",
+      processDeniedBySession: false,
       brokerEffect: false,
     });
     expect(String(structured(clean).sessionCharterDigest)).toHaveLength(64);
@@ -678,8 +681,11 @@ describe("control plane session MCP tools", () => {
     expect(optionProbe.isError).not.toBe(true);
     expect(structured(optionProbe)).toMatchObject({
       allowed: true,
+      ledgerAllowed: true,
       sessionPolicyAllowed: false,
       sessionCharterBinding: "mismatch-session-denies",
+      charterBindingEnforcement: "warn",
+      processDeniedBySession: false,
       brokerEffect: false,
     });
     expect(String(structured(optionProbe).warning)).toMatch(/Session charter would DENY/i);
@@ -692,5 +698,81 @@ describe("control plane session MCP tools", () => {
     expect(notes.some((n) => n.includes("preflight pf-opt") && n.includes("mismatch-session-denies"))).toBe(
       true,
     );
+  });
+
+  it("fail-closes process allow when session charter denies under charterBindingEnforcement", async () => {
+    await harness.client.listTools();
+    await harness.client.callTool({
+      name: "runbook_session_create",
+      arguments: {
+        sessionId: "CPS-PREFLIGHT-FC",
+        label: "Preflight fail-closed binding",
+        policy: elitePolicy,
+        charterBindingEnforcement: "fail-closed",
+      },
+    });
+    await harness.client.callTool({
+      name: "runbook_session_use",
+      arguments: { sessionId: "CPS-PREFLIGHT-FC" },
+    });
+
+    const weakPolicy: RiskPolicy = {
+      ...elitePolicy,
+      allowedInstruments: ["equity", "option"],
+      allowedSymbols: [],
+      deniedSymbols: [],
+      maxOrderNotional: 500,
+      capitalBudget: 1_000,
+      cashReserve: 100,
+    };
+    await harness.client.callTool({
+      name: "runbook_create_experiment",
+      arguments: {
+        experimentId: "RUN-PREFLIGHT-FC",
+        name: "Fail-closed dual-eval",
+        question: "Does fail-closed charter binding process-deny?",
+        benchmark: "VTI",
+        observationDays: 1,
+        policy: weakPolicy,
+        actor: { type: "agent", id: "preflight-fc" },
+        occurredAt: "2026-07-23T02:00:00.000Z",
+        sessionId: "CPS-PREFLIGHT-FC",
+      },
+    });
+
+    const optionProbe = await harness.client.callTool({
+      name: "runbook_preflight_trade",
+      arguments: {
+        proposal: {
+          proposalId: "pf-opt-fc",
+          experimentId: "RUN-PREFLIGHT-FC",
+          symbol: "SPY",
+          instrument: "option",
+          side: "buy",
+          notional: 50,
+          projectedPositionNotional: 50,
+          dailyTradesAfter: 1,
+          currentDrawdownPercent: 0.5,
+          hasThesis: true,
+          hasInvalidation: true,
+          evidenceSourceCount: 2,
+        },
+        actor: { type: "agent", id: "preflight-fc" },
+        occurredAt: "2026-07-23T02:01:00.000Z",
+        sessionId: "CPS-PREFLIGHT-FC",
+      },
+    });
+    expect(optionProbe.isError).not.toBe(true);
+    expect(structured(optionProbe)).toMatchObject({
+      allowed: false,
+      ledgerAllowed: true,
+      sessionPolicyAllowed: false,
+      sessionCharterBinding: "mismatch-session-denies",
+      charterBindingEnforcement: "fail-closed",
+      processDeniedBySession: true,
+      enforcement: "advisory",
+      brokerEffect: false,
+    });
+    expect(String(structured(optionProbe).warning)).toMatch(/fail-closed process deny/i);
   });
 });

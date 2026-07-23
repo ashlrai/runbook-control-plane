@@ -41,6 +41,7 @@ export class SessionStore {
     experimentId?: string;
     inventoryPin?: InventoryPin;
     inventoryEnforcement?: "off" | "warn" | "fail-closed";
+    charterBindingEnforcement?: "off" | "warn" | "fail-closed";
     createdAt?: string;
   }): Promise<ControlPlaneSession> {
     await this.ensureRoot();
@@ -62,6 +63,7 @@ export class SessionStore {
       ...(input.experimentId ? { experimentId: input.experimentId } : {}),
       ...(input.inventoryPin ? { inventoryPin: input.inventoryPin } : {}),
       inventoryEnforcement: input.inventoryEnforcement ?? "fail-closed",
+      charterBindingEnforcement: input.charterBindingEnforcement ?? "warn",
       shadowGenerations: [],
       dossierAttachments: [],
       notes: [],
@@ -121,6 +123,13 @@ export class SessionStore {
     inventoryEnforcement: "off" | "warn" | "fail-closed",
   ): Promise<ControlPlaneSession> {
     return this.update(sessionId, (s) => ({ ...s, inventoryEnforcement }));
+  }
+
+  async setCharterBindingEnforcement(
+    sessionId: string,
+    charterBindingEnforcement: "off" | "warn" | "fail-closed",
+  ): Promise<ControlPlaneSession> {
+    return this.update(sessionId, (s) => ({ ...s, charterBindingEnforcement }));
   }
 
   async attachDossier(

@@ -6,6 +6,7 @@
 
 - Local session records binding charter digests, inventory pins, shadow-generation summaries, and dossier attachments
 - Fail-closed inventory checks against an admitted tool pin
+- Charter dual-eval (`resolveCharterDualEval`) with `charterBindingEnforcement`: off | warn | fail-closed — process-layer only, not a hard broker gateway
 - Signed approval *intent* helpers (device-key local attestation)
 - Evidence pack export for one session
 
