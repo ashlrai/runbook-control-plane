@@ -37,8 +37,8 @@
     "@runbook/financial-dossier-adapter": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "22.19.20",
-    "typescript": "5.9.3",
+    "@types/node": "26.1.1",
+    "typescript": "7.0.2",
     "vitest": "4.1.10"
   },
   "license": "Apache-2.0"
