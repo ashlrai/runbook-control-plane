@@ -31,10 +31,10 @@
     "@runbook/financial-bench-harness": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "22.19.20",
-    "esbuild": "0.28.1",
-    "typescript": "5.9.3",
-    "vitest": "4.1.10"
+    "@types/node": "26.4.0",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
   },
   "license": "Apache-2.0"
 }
