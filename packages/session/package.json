@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@runbook/engine": "workspace:*",
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.19.8",
