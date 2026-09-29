@@ -251,6 +251,7 @@ export function HostedShowcase() {
       searchParams.get("autorun") === "1" || searchParams.get("auto") === "1";
     if (!auto) return;
     autorunStarted.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ?autorun=1 intentionally starts the story once on mount (guarded by autorunStarted)
     void runStory();
   }, [searchParams, runStory]);
 

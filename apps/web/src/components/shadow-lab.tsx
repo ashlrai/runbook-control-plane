@@ -144,6 +144,7 @@ export function ShadowLab() {
     if (typeof window === "undefined") return;
     const sessionId = parseSessionIdQuery(window.location.search);
     if (!sessionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount sync from ?sessionId= and the browser session store (client-only; must not run during SSR)
       setBoundSessionId(null);
       setBoundSessionLabel(null);
       setSessionBindNote(null);

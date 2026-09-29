@@ -33,7 +33,9 @@ const input: SocialBaselineInput = {
 function record(overrides: Partial<SocialBaselineInput> = {}, id = "019f86c5-9fb1-7642-9c6f-60b62038bb09") {
   return buildSocialBaselineRecord(
     { ...input, ...overrides },
-    { baselineId: id, recordedAt: "2026-07-21T20:00:00.000Z", nowMs: Date.parse("2026-07-21T20:00:00.000Z") },
+    // capturedAtLocal values are wall-clock (local) times, so "now" must be local too;
+    // a fixed UTC instant made this suite fail west of UTC-4:25 (e.g. US Central/Pacific).
+    { baselineId: id, recordedAt: "2026-07-21T20:00:00.000Z", nowMs: new Date("2026-07-21T16:00").valueOf() },
   );
 }
 

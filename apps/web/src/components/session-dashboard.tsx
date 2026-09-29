@@ -113,6 +113,7 @@ export function SessionDashboard() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount sync from the browser session store and ?sessionId= (client-only; must not run during SSR)
     refresh();
     if (typeof window === "undefined") return;
     const fromUrl = parseSessionIdQuery(window.location.search);

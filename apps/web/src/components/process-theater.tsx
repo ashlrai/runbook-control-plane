@@ -146,6 +146,7 @@ export function ProcessTheater() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount sync from the browser session store (client-only; must not run during SSR)
     refresh();
   }, [refresh]);
 
