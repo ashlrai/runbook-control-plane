@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@runbook/capsule": "workspace:*",
     "@runbook/capsule-author": "workspace:*",
     "@runbook/engine": "workspace:*",
@@ -36,7 +36,7 @@
     "@runbook/public-auth-metadata": "workspace:*",
     "@runbook/session": "workspace:*",
     "@runbook/shadow-lab": "workspace:*",
-    "zod": "4.4.3"
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.19.8",
